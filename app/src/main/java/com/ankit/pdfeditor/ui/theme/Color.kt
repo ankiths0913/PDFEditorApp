@@ -15,3 +15,10 @@ val PDFOutline = Color(0xFFD1D5DB)
 val PDFDarkBackground = Color(0xFF111827)
 val PDFDarkSurface = Color(0xFF1F2937)
 val PDFDarkText = Color(0xFFF9FAFB)
+
+// Hybrid Palette Tokens
+val PurplePrimary = Color(0xFF6366F1)
+val PurpleSurface = Color(0xFFF8FAFC)
+val CardBackground = Color(0xFFFFFFFF)
+val TextPrimary = Color(0xFF1E293B)
+val TextSecondary = Color(0xFF64748B)
