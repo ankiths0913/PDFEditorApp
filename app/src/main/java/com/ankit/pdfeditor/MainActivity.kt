@@ -26,9 +26,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -95,7 +99,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -104,6 +107,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalDensity
@@ -284,62 +288,71 @@ private fun loadRecentFiles(context: Context): List<RecentFileItem> {
     }
 }
 
-private fun convertImageToPdfOnDevice(context: Context, imageUri: Uri): File? {
+private fun convertImagesToPdfOnDevice(context: Context, imageUris: List<Uri>): File? {
+    if (imageUris.isEmpty()) return null
     return try {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        context.contentResolver.openInputStream(imageUri)?.use { stream ->
-            BitmapFactory.decodeStream(stream, null, bounds)
-        }
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-
-        val largest = maxOf(bounds.outWidth, bounds.outHeight)
-        var sample = 1
-        while (largest / sample > MAX_EXPORT_RENDER_DIMENSION * 2) sample *= 2
-
-        val options = BitmapFactory.Options().apply {
-            inSampleSize = sample
-            inPreferredConfig = Bitmap.Config.ARGB_8888
-        }
-        val bitmap = context.contentResolver.openInputStream(imageUri)?.use { stream ->
-            BitmapFactory.decodeStream(stream, null, options)
-        } ?: return null
-
-        val finalBitmap = if (maxOf(bitmap.width, bitmap.height) > MAX_EXPORT_RENDER_DIMENSION) {
-            val ratio = MAX_EXPORT_RENDER_DIMENSION.toFloat() / maxOf(bitmap.width, bitmap.height)
-            val targetWidth = (bitmap.width * ratio).toInt().coerceAtLeast(1)
-            val targetHeight = (bitmap.height * ratio).toInt().coerceAtLeast(1)
-
-            if (targetWidth == bitmap.width && targetHeight == bitmap.height) {
-                bitmap
-            } else {
-                val scaledBitmap = bitmap.scale(targetWidth, targetHeight)
-                if (scaledBitmap !== bitmap && !bitmap.isRecycled) {
-                    bitmap.recycle()
-                }
-                scaledBitmap
-            }
-        } else {
-            bitmap
-        }
-
         val outputFile = File(
             appDocumentsDir(context),
             "Converted_${System.currentTimeMillis()}.pdf"
         )
         val pdfDocument = PdfDocument()
+
         try {
-            val pageInfo = PdfDocument.PageInfo.Builder(
-                finalBitmap.width,
-                finalBitmap.height,
-                1
-            ).create()
-            val page = pdfDocument.startPage(pageInfo)
-            page.canvas.drawBitmap(finalBitmap, 0f, 0f, null)
-            pdfDocument.finishPage(page)
+            imageUris.forEachIndexed { index, imageUri ->
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                context.contentResolver.openInputStream(imageUri)?.use { stream ->
+                    BitmapFactory.decodeStream(stream, null, bounds)
+                }
+
+                if (bounds.outWidth > 0 && bounds.outHeight > 0) {
+                    val largest = maxOf(bounds.outWidth, bounds.outHeight)
+                    var sample = 1
+                    while (largest / sample > MAX_EXPORT_RENDER_DIMENSION * 2) sample *= 2
+
+                    val options = BitmapFactory.Options().apply {
+                        inSampleSize = sample
+                        inPreferredConfig = Bitmap.Config.ARGB_8888
+                    }
+
+                    val bitmap = context.contentResolver.openInputStream(imageUri)?.use { stream ->
+                        BitmapFactory.decodeStream(stream, null, options)
+                    }
+
+                    if (bitmap != null) {
+                        val finalBitmap = if (maxOf(bitmap.width, bitmap.height) > MAX_EXPORT_RENDER_DIMENSION) {
+                            val ratio = MAX_EXPORT_RENDER_DIMENSION.toFloat() / maxOf(bitmap.width, bitmap.height)
+                            val targetWidth = (bitmap.width * ratio).toInt().coerceAtLeast(1)
+                            val targetHeight = (bitmap.height * ratio).toInt().coerceAtLeast(1)
+
+                            if (targetWidth == bitmap.width && targetHeight == bitmap.height) {
+                                bitmap
+                            } else {
+                                val scaledBitmap = bitmap.scale(targetWidth, targetHeight)
+                                if (scaledBitmap !== bitmap && !bitmap.isRecycled) {
+                                    bitmap.recycle()
+                                }
+                                scaledBitmap
+                            }
+                        } else {
+                            bitmap
+                        }
+
+                        val pageInfo = PdfDocument.PageInfo.Builder(
+                            finalBitmap.width,
+                            finalBitmap.height,
+                            index + 1
+                        ).create()
+                        val page = pdfDocument.startPage(pageInfo)
+                        page.canvas.drawBitmap(finalBitmap, 0f, 0f, null)
+                        pdfDocument.finishPage(page)
+
+                        if (!finalBitmap.isRecycled) finalBitmap.recycle()
+                    }
+                }
+            }
             File(outputFile.parentFile, outputFile.name).outputStream().use { pdfDocument.writeTo(it) }
         } finally {
             pdfDocument.close()
-            if (!finalBitmap.isRecycled) finalBitmap.recycle()
         }
         outputFile
     } catch (_: Exception) {
@@ -676,19 +689,19 @@ private fun PdfStudioApp() {
     }
 
     val photoPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri: Uri? ->
-        uri ?: return@rememberLauncherForActivityResult
+        contract = ActivityResultContracts.PickMultipleVisualMedia()
+    ) { uris: List<Uri> ->
+        if (uris.isEmpty()) return@rememberLauncherForActivityResult
         scope.launch {
             isBusy = true
             errorMessage = null
             try {
                 val generated = withContext(Dispatchers.IO) {
-                    convertImageToPdfOnDevice(context, uri)
-                } ?: throw IOException("Could not convert the selected image to PDF")
+                    convertImagesToPdfOnDevice(context, uris)
+                } ?: throw IOException("Could not convert the selected images to PDF")
                 loadPdf(fileProviderUri(context, generated), generated.name)
             } catch (e: Exception) {
-                errorMessage = e.message ?: "Could not import image"
+                errorMessage = e.message ?: "Could not import images"
             } finally {
                 isBusy = false
             }
@@ -793,6 +806,7 @@ private fun PdfStudioApp() {
                         rendererMutex = rendererMutex,
                         isBusy = isBusy,
                         hasUnsavedChanges = hasUnsavedChanges,
+                        hasUndoHistory = annotationHistory.isNotEmpty(),
                         onPageChange = { currentPage = it.coerceIn(0, pageCount - 1) },
                         onZoomChange = { zoomLevel = it.coerceIn(1f, 3f) },
                         onModeChange = { editorMode = it },
@@ -1179,6 +1193,7 @@ private fun EditorScreen(
     rendererMutex: Mutex,
     isBusy: Boolean,
     hasUnsavedChanges: Boolean,
+    hasUndoHistory: Boolean,
     onPageChange: (Int) -> Unit,
     onZoomChange: (Float) -> Unit,
     onModeChange: (EditorMode) -> Unit,
@@ -1192,10 +1207,17 @@ private fun EditorScreen(
     onShareClick: (Uri) -> Unit,
     onBackClick: () -> Unit
 ) {
+    val context = LocalContext.current
+    // Resolving a display name from a content:// Uri is a blocking ContentResolver
+    // query. It was previously called directly inside the topBar composable, which
+    // re-ran on every recomposition of EditorScreen (e.g. every stroke drawn) and
+    // blocked the main thread each time. Resolve it once per pdfUri instead.
+    val fileName = remember(pdfUri) { resolveFileName(context, pdfUri) }
+
     Scaffold(
         topBar = {
             EditorTopBar(
-                fileName = resolveFileName(LocalContext.current, pdfUri),
+                fileName = fileName,
                 onShareClick = { onShareClick(pdfUri) },
                 onSaveClick = onSaveClick,
                 onBackClick = onBackClick,
@@ -1213,7 +1235,7 @@ private fun EditorScreen(
                 onWidthChange = onWidthChange,
                 zoomLevel = zoomLevel,
                 onZoomChange = onZoomChange,
-                canUndo = pageStrokes.values.any { it.isNotEmpty() } || pageTexts.values.any { it.isNotEmpty() },
+                canUndo = hasUndoHistory,
                 onUndo = onUndo
             )
         }
@@ -1392,6 +1414,9 @@ private fun PdfViewerWithSwipe(
     onTextAdded: (PdfText) -> Unit,
     onEraseAt: (Offset) -> Unit
 ) {
+    val horizontalScrollState = rememberScrollState()
+    val verticalScrollState = rememberScrollState()
+
     Box(
         modifier = modifier.fillMaxSize().background(Color.White)
             .pointerInput(editorMode, zoomLevel, currentPage, pageCount) {
@@ -1407,13 +1432,41 @@ private fun PdfViewerWithSwipe(
             }
     ) {
         Column(Modifier.fillMaxSize()) {
+            // Page Navigation Bar with explicit Previous / Next buttons
+            Row(
+                modifier = Modifier.fillMaxWidth().background(Color(0xFFF3F4F6)).padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = { if (currentPage > 0) onPageChange(currentPage - 1) },
+                    enabled = currentPage > 0
+                ) {
+                    Icon(Icons.Default.ChevronLeft, contentDescription = "Previous Page")
+                }
+                Text(
+                    "Page ${currentPage + 1} / $pageCount",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.Black
+                )
+                IconButton(
+                    onClick = { if (currentPage < pageCount - 1) onPageChange(currentPage + 1) },
+                    enabled = currentPage < pageCount - 1
+                ) {
+                    Icon(Icons.Default.ChevronRight, contentDescription = "Next Page")
+                }
+            }
+
+            // Scrollable container enabling pan/scroll when zoomed or viewing
             Box(
-                modifier = Modifier.fillMaxWidth().background(Color(0xFFF3F4F6)).padding(12.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .horizontalScroll(horizontalScrollState)
+                    .verticalScroll(verticalScrollState),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Page ${currentPage + 1} / $pageCount", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium, color = Color.Black)
-            }
-            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 PdfPage(
                     renderer = renderer,
                     pageIndex = currentPage,
@@ -1455,14 +1508,18 @@ private fun PdfPage(
     var textInput by remember { mutableStateOf("") }
     var textPosition by remember { mutableStateOf(Offset.Zero) }
 
+    // Load page bitmap safely with bounds checking and memory cleanup
     LaunchedEffect(pageIndex, renderer) {
+        val oldBitmap = renderInfo?.bitmap
         renderInfo = null
         renderError = null
 
         try {
+            // Guard against out-of-bounds page indices
+            val safePageIndex = pageIndex.coerceIn(0, renderer.pageCount - 1)
             val result = rendererMutex.withLock {
                 withContext(Dispatchers.IO) {
-                    renderer.openPage(pageIndex).use { page ->
+                    renderer.openPage(safePageIndex).use { page ->
                         val sourceWidth = page.width
                         val sourceHeight = page.height
                         val scale = minOf(
@@ -1473,40 +1530,23 @@ private fun PdfPage(
                         val width = (sourceWidth * scale).toInt().coerceAtLeast(1)
                         val height = (sourceHeight * scale).toInt().coerceAtLeast(1)
 
-                        var bitmap: Bitmap? = null
-                        try {
-                            bitmap = createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                            page.render(
-                                bitmap,
-                                null,
-                                null,
-                                PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY
-                            )
-                            bitmap.prepareToDraw()
-
-                            val readyBitmap = bitmap
-                            bitmap = null
-                            PageRenderInfo(readyBitmap)
-                        } finally {
-                            bitmap?.let {
-                                if (!it.isRecycled) {
-                                    it.recycle()
-                                }
-                            }
-                        }
+                        val bitmap = createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                        page.render(
+                            bitmap,
+                            null,
+                            null,
+                            PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY
+                        )
+                        bitmap.prepareToDraw()
+                        PageRenderInfo(bitmap)
                     }
                 }
             }
 
-            if (!isActive) {
-                result.bitmap.let {
-                    if (!it.isRecycled) {
-                        it.recycle()
-                    }
-                }
-                return@LaunchedEffect
+            // Clean up the old bitmap to prevent OutOfMemoryError
+            if (oldBitmap != null && !oldBitmap.isRecycled && oldBitmap !== result.bitmap) {
+                oldBitmap.recycle()
             }
-
             renderInfo = result
         } catch (e: CancellationException) {
             throw e
@@ -1515,7 +1555,16 @@ private fun PdfPage(
         }
     }
 
-
+    // Ensure bitmap is recycled when leaving composition
+    DisposableEffect(pageIndex, renderer) {
+        onDispose {
+            renderInfo?.bitmap?.let { bitmap ->
+                if (!bitmap.isRecycled) {
+                    bitmap.recycle()
+                }
+            }
+        }
+    }
 
     if (showTextDialog) {
         AlertDialog(
@@ -1545,27 +1594,37 @@ private fun PdfPage(
         )
     }
 
-    BoxWithConstraints(
-        modifier = Modifier.fillMaxSize().background(Color(0xFFE5E7EB)).graphicsLayer(scaleX = zoomLevel, scaleY = zoomLevel),
+    val info = renderInfo
+    val configuration = LocalConfiguration.current
+
+    // Replaced BoxWithConstraints with a standard Box and safe screen-based dimensions.
+    // Zoom is applied once, via pageWidthDp/pageHeightDp below — do not also scale here
+    // with graphicsLayer, or zoom compounds (e.g. 2x becomes ~4x).
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFE5E7EB)),
         contentAlignment = Alignment.Center
     ) {
-        val info = renderInfo
         when {
             info == null && renderError == null -> CircularProgressIndicator()
-            info == null -> Text(renderError ?: "Error loading page", color = Color.Red, modifier = Modifier.padding(24.dp), textAlign = TextAlign.Center)
+            info == null -> Text(
+                renderError ?: "Error loading page",
+                color = Color.Red,
+                modifier = Modifier.padding(24.dp),
+                textAlign = TextAlign.Center
+            )
             else -> {
-                val viewportWidth = constraints.maxWidth.toFloat().coerceAtLeast(1f)
-                val viewportHeight = constraints.maxHeight.toFloat().coerceAtLeast(1f)
-                val fitScale = minOf(viewportWidth / info.bitmap.width, viewportHeight / info.bitmap.height)
-                val pageWidthPx = (info.bitmap.width * fitScale)
-                    .toInt()
-                    .coerceAtLeast(1)
-                val pageHeightPx = (info.bitmap.height * fitScale)
-                    .toInt()
-                    .coerceAtLeast(1)
-                val density = LocalDensity.current
-                val pageWidthDp = (pageWidthPx / density.density).dp
-                val pageHeightDp = (pageHeightPx / density.density).dp
+                // Compute dimensions safely using screen width and aspect ratio instead of unbounded constraints
+                val bitmapWidth = info.bitmap.width.toFloat().coerceAtLeast(1f)
+                val bitmapHeight = info.bitmap.height.toFloat().coerceAtLeast(1f)
+                val aspectRatio = bitmapWidth / bitmapHeight
+
+                val baseWidthDp = minOf(configuration.screenWidthDp.dp * 0.9f, 600.dp)
+                val baseHeightDp = baseWidthDp / aspectRatio
+
+                val pageWidthDp = baseWidthDp * zoomLevel
+                val pageHeightDp = baseHeightDp * zoomLevel
 
                 Box(
                     modifier = Modifier
@@ -1597,8 +1656,7 @@ private fun PdfPage(
                                             onDragEnd = {
                                                 if (currentPoints.isNotEmpty()) {
                                                     val minDimension = minOf(size.width, size.height)
-                                                        .coerceAtLeast(1)
-                                                        .toFloat()
+                                                        .coerceAtLeast(1).toFloat()
 
                                                     val widthFraction = strokeWidth / minDimension
                                                     onStrokeAdded(
