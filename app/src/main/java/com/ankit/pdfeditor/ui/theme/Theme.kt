@@ -8,66 +8,34 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val LightColorScheme = lightColorScheme(
-    primary = PDFPrimary,
-    onPrimary = PDFBackground,
-    primaryContainer = PDFPrimary,
-    onPrimaryContainer = PDFBackground,
-    secondary = PDFSecondary,
-    onSecondary = PDFBackground,
-    secondaryContainer = PDFSecondary,
-    onSecondaryContainer = PDFBackground,
-    tertiary = PDFAccent,
-    onTertiary = PDFBackground,
-    tertiaryContainer = PDFAccent,
-    onTertiaryContainer = PDFBackground,
-    background = PDFBackground,
-    onBackground = PDFText,
-    surface = PDFSurface,
-    onSurface = PDFText,
-    surfaceVariant = PDFSurfaceVariant,
-    onSurfaceVariant = PDFText,
-    outline = PDFOutline
+    primary = PdfPrimary,
+    secondary = PurpleGrey40,
+    tertiary = Pink40
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = PDFPrimary,
-    onPrimary = PDFDarkBackground,
-    primaryContainer = PDFSecondary,
-    onPrimaryContainer = PDFDarkText,
-    secondary = PDFSecondary,
-    onSecondary = PDFDarkBackground,
-    secondaryContainer = PDFAccent,
-    onSecondaryContainer = PDFDarkText,
-    tertiary = PDFAccent,
-    onTertiary = PDFDarkBackground,
-    tertiaryContainer = PDFAccent,
-    onTertiaryContainer = PDFDarkText,
-    background = PDFDarkBackground,
-    onBackground = PDFDarkText,
-    surface = PDFDarkSurface,
-    onSurface = PDFDarkText,
-    surfaceVariant = Color(0xFF374151),
-    onSurfaceVariant = PDFDarkText,
-    outline = Color(0xFF4B5563)
+    primary = PdfPrimaryDark,
+    secondary = PurpleGrey80,
+    tertiary = Pink80,
+    surface = PdfSurfaceDark,
+    surfaceVariant = PdfSurfaceVariantDark,
+    onSurface = PdfOnSurfaceDark
 )
 
 @Composable
 fun PDFEdittorAppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
+    val context = LocalContext.current
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
