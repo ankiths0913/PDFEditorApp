@@ -1,8 +1,10 @@
 package com.ankit.pdfeditor
 
+import android.Manifest
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Paint
@@ -22,7 +24,10 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -30,31 +35,47 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
@@ -62,6 +83,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -69,6 +92,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -91,7 +115,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -109,11 +136,36 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.content.edit
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
 import com.ankit.pdfeditor.ui.theme.PDFEdittorAppTheme
+import com.ankit.pdfeditor.ui.theme.PdfPrimary
+import com.ankit.pdfeditor.ui.theme.StudioAmber400
+import com.ankit.pdfeditor.ui.theme.StudioBlue50
+import com.ankit.pdfeditor.ui.theme.StudioBlue500
+import com.ankit.pdfeditor.ui.theme.StudioBlue600
+import com.ankit.pdfeditor.ui.theme.StudioEmerald500
+import com.ankit.pdfeditor.ui.theme.StudioIndigo50
+import com.ankit.pdfeditor.ui.theme.StudioIndigo600
+import com.ankit.pdfeditor.ui.theme.StudioRed100
+import com.ankit.pdfeditor.ui.theme.StudioRed50
+import com.ankit.pdfeditor.ui.theme.StudioRed500
+import com.ankit.pdfeditor.ui.theme.StudioSky50
+import com.ankit.pdfeditor.ui.theme.StudioSky600
+import com.ankit.pdfeditor.ui.theme.StudioSlate100
+import com.ankit.pdfeditor.ui.theme.StudioSlate200
+import com.ankit.pdfeditor.ui.theme.StudioSlate400
+import com.ankit.pdfeditor.ui.theme.StudioSlate50
+import com.ankit.pdfeditor.ui.theme.StudioSlate500
+import com.ankit.pdfeditor.ui.theme.StudioSlate600
+import com.ankit.pdfeditor.ui.theme.StudioSlate700
+import com.ankit.pdfeditor.ui.theme.StudioSlate800
+import com.ankit.pdfeditor.ui.theme.StudioSlate900
+import com.ankit.pdfeditor.ui.theme.StudioViolet50
+import com.ankit.pdfeditor.ui.theme.StudioViolet600
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -145,7 +197,7 @@ private const val MAX_EXPORT_RENDER_DIMENSION = 2048
 private const val DEFAULT_HIGHLIGHT_ALPHA = 0.7f
 
 private enum class EditorMode { VIEW, DRAW, HIGHLIGHT, TEXT, ERASE }
-private enum class AppScreen { HOME, EDITOR, SETTINGS }
+private enum class AppScreen { HOME, FILES, TOOLS, EDITOR, SETTINGS }
 private enum class SortOption { DATE, NAME }
 
 private data class PdfStroke(
@@ -695,6 +747,71 @@ private fun PdfStudioApp() {
         }
     }
 
+    // "Scan Doc" / Camera import: capture a photo, then reuse the same
+    // image -> PDF conversion path as the Photos picker above.
+    var pendingScanFile by remember { mutableStateOf<File?>(null) }
+    var pendingScanUri by remember { mutableStateOf<Uri?>(null) }
+
+    fun handleScanCaptureResult(success: Boolean) {
+        val capturedFile = pendingScanFile
+        val capturedUri = pendingScanUri
+        pendingScanFile = null
+        pendingScanUri = null
+        if (!success || capturedFile == null || capturedUri == null) {
+            if (capturedFile?.exists() == true) capturedFile.delete()
+            return
+        }
+        scope.launch {
+            isBusy = true
+            errorMessage = null
+            try {
+                val generated = withContext(Dispatchers.IO) {
+                    convertImageToPdfOnDevice(context, capturedUri)
+                } ?: throw IOException("Could not convert the scanned photo to PDF")
+                withContext(Dispatchers.IO) { capturedFile.delete() }
+                loadPdf(fileProviderUri(context, generated), generated.name)
+            } catch (e: Exception) {
+                errorMessage = e.message ?: "Could not process the scanned document"
+            } finally {
+                isBusy = false
+            }
+        }
+    }
+
+    val scanCameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success -> handleScanCaptureResult(success) }
+
+    fun startScanCapture() {
+        val file = File(appDocumentsDir(context), "Scan_${System.currentTimeMillis()}.jpg")
+        val uri = fileProviderUri(context, file)
+        pendingScanFile = file
+        pendingScanUri = uri
+        scanCameraLauncher.launch(uri)
+    }
+
+    val scanCameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            startScanCapture()
+        } else {
+            errorMessage = "Camera permission is required to scan documents."
+        }
+    }
+
+    fun launchScanDoc() {
+        val hasPermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
+        if (hasPermission) {
+            startScanCapture()
+        } else {
+            scanCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
     val saveLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/pdf")
     ) { uri: Uri? ->
@@ -741,8 +858,12 @@ private fun PdfStudioApp() {
         }
     }
 
-    BackHandler(enabled = currentScreen == AppScreen.EDITOR) {
-        requestBack()
+    BackHandler(enabled = currentScreen != AppScreen.HOME) {
+        if (currentScreen == AppScreen.EDITOR) {
+            requestBack()
+        } else {
+            currentScreen = AppScreen.HOME
+        }
     }
 
     val latestRenderer by rememberUpdatedState(renderer)
@@ -756,24 +877,54 @@ private fun PdfStudioApp() {
     }
 
     PDFEdittorAppTheme(darkTheme = isDarkTheme) {
+        val onOpenPdf: () -> Unit = { filePicker.launch(arrayOf("application/pdf")) }
+        val onPhotoClick: () -> Unit = {
+            photoPicker.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
+        }
+        val onScanDoc: () -> Unit = { launchScanDoc() }
+        val onFileTap: (Uri) -> Unit = { selectedUri -> openPdf(selectedUri) }
+        val onToggleFavorite: (RecentFileItem) -> Unit = { fileItem ->
+            recentFiles = recentFiles.map {
+                if (it.uri == fileItem.uri) it.copy(isFavorite = !it.isFavorite) else it
+            }
+            persistRecentFiles(context, recentFiles)
+        }
+        val onRemoveRecent: (RecentFileItem) -> Unit = { fileItem ->
+            recentFiles = recentFiles.filterNot { it.uri == fileItem.uri }
+            persistRecentFiles(context, recentFiles)
+        }
+        val onShareRecent: (RecentFileItem) -> Unit = { fileItem ->
+            try {
+                sharePdf(context, Uri.parse(fileItem.uri))
+            } catch (e: Exception) {
+                errorMessage = e.message ?: "Could not share PDF"
+            }
+        }
+
         when (currentScreen) {
             AppScreen.HOME -> HomeScreen(
                 recentFiles = recentFiles,
-                onOpenPdf = { filePicker.launch(arrayOf("application/pdf")) },
-                onPhotoClick = {
-                    photoPicker.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                },
-                onFileTap = { selectedUri -> openPdf(selectedUri) },
+                onOpenPdf = onOpenPdf,
+                onPhotoClick = onPhotoClick,
+                onScanDoc = onScanDoc,
+                onFileTap = onFileTap,
                 onSettingsTap = { currentScreen = AppScreen.SETTINGS },
-                onToggleFavorite = { fileItem ->
-                    recentFiles = recentFiles.map {
-                        if (it.uri == fileItem.uri) it.copy(isFavorite = !it.isFavorite) else it
-                    }
-                    persistRecentFiles(context, recentFiles)
-                }
+                onToggleFavorite = onToggleFavorite,
+                onRemove = onRemoveRecent,
+                onShare = onShareRecent
             )
+
+            AppScreen.FILES -> FilesScreen(
+                recentFiles = recentFiles,
+                onFileTap = onFileTap,
+                onToggleFavorite = onToggleFavorite,
+                onRemove = onRemoveRecent,
+                onShare = onShareRecent
+            )
+
+            AppScreen.TOOLS -> ToolsScreen()
 
             AppScreen.EDITOR -> {
                 val activeRenderer = renderer
@@ -793,6 +944,7 @@ private fun PdfStudioApp() {
                         rendererMutex = rendererMutex,
                         isBusy = isBusy,
                         hasUnsavedChanges = hasUnsavedChanges,
+                        hasUndoHistory = annotationHistory.isNotEmpty(),
                         onPageChange = { currentPage = it.coerceIn(0, pageCount - 1) },
                         onZoomChange = { zoomLevel = it.coerceIn(1f, 3f) },
                         onModeChange = { editorMode = it },
@@ -866,7 +1018,8 @@ private fun PdfStudioApp() {
                                 }
                             }
                         },
-                        onBackClick = ::requestBack
+                        onBackClick = ::requestBack,
+                        onEditorAction = { message -> errorMessage = message }
                     )
                 } else {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -883,6 +1036,16 @@ private fun PdfStudioApp() {
                 },
                 onBackClick = { currentScreen = AppScreen.HOME }
             )
+        }
+
+        if (currentScreen != AppScreen.EDITOR) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+                BottomNavBar(
+                    currentScreen = currentScreen,
+                    onTabSelected = { currentScreen = it },
+                    onScanClick = onScanDoc
+                )
+            }
         }
 
         if (isBusy) {
@@ -955,19 +1118,439 @@ private fun PdfStudioApp() {
 }
 
 @Composable
+private fun DashboardTopBar(
+    subtitle: String,
+    onSettingsTap: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(Brush.linearGradient(listOf(StudioIndigo600, PdfPrimary))),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Description,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text("PDF Studio", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(StudioEmerald500)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(subtitle, style = MaterialTheme.typography.labelSmall, color = StudioSlate500)
+                }
+            }
+        }
+        Surface(
+            onClick = onSettingsTap,
+            shape = CircleShape,
+            color = StudioSlate100,
+            modifier = Modifier.size(36.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                Icon(
+                    Icons.Default.Settings,
+                    contentDescription = "Settings",
+                    tint = StudioIndigo600,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeroBanner(onOpenPdf: () -> Unit, onScanDoc: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(28.dp))
+            .background(Brush.linearGradient(listOf(StudioIndigo600, StudioBlue500)))
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = 30.dp, y = (-30).dp)
+                .size(140.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.12f))
+                .blur(30.dp)
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = 20.dp, y = 20.dp)
+                .size(110.dp)
+                .clip(CircleShape)
+                .background(PdfPrimary.copy(alpha = 0.25f))
+                .blur(24.dp)
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color.White.copy(alpha = 0.20f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.PictureAsPdf,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "PDF Reader & Editor",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Read, annotate, highlight & organize all your PDFs easily.",
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                color = Color.White.copy(alpha = 0.9f)
+            )
+            Spacer(Modifier.height(20.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Button(
+                    onClick = onOpenPdf,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.White)
+                ) {
+                    Icon(
+                        Icons.Default.FolderOpen,
+                        contentDescription = null,
+                        tint = StudioIndigo600,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text("Open PDF", color = StudioIndigo600, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+                Button(
+                    onClick = onScanDoc,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.18f))
+                ) {
+                    Icon(
+                        Icons.Default.DocumentScanner,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text("Scan Doc", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ImportGridSection(
+    onStorageClick: () -> Unit,
+    onPhotoClick: () -> Unit,
+    onFilesClick: () -> Unit,
+    onCameraClick: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Import From", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ImportGridItem(Icons.Default.Storage, "Storage", StudioIndigo50, StudioIndigo600, Modifier.weight(1f), onStorageClick)
+            ImportGridItem(Icons.Default.Image, "Photos", StudioBlue50, StudioBlue600, Modifier.weight(1f), onPhotoClick)
+            ImportGridItem(Icons.Default.Cloud, "Files", StudioSky50, StudioSky600, Modifier.weight(1f), onFilesClick)
+            ImportGridItem(Icons.Default.PhotoCamera, "Camera", StudioViolet50, StudioViolet600, Modifier.weight(1f), onCameraClick)
+        }
+    }
+}
+
+@Composable
+private fun ImportGridItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    iconBackground: Color,
+    iconTint: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, StudioSlate200),
+        shadowElevation = 1.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp, horizontal = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(iconBackground),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(18.dp))
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        }
+    }
+}
+
+@Composable
+private fun DashboardSearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    favoritesOnly: Boolean,
+    onFavoritesOnlyChange: (Boolean) -> Unit
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    Box {
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Search recent PDFs...") },
+            singleLine = true,
+            shape = RoundedCornerShape(16.dp),
+            leadingIcon = {
+                Icon(Icons.Default.Search, contentDescription = null, tint = StudioSlate400)
+            },
+            trailingIcon = {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(Icons.Default.Tune, contentDescription = "Filter", tint = StudioSlate500, modifier = Modifier.size(20.dp))
+                }
+            },
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedBorderColor = StudioSlate200,
+                focusedBorderColor = PdfPrimary,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                focusedContainerColor = MaterialTheme.colorScheme.surface
+            )
+        )
+        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+            DropdownMenuItem(
+                text = { Text(if (favoritesOnly) "Show all files" else "Show favorites only") },
+                onClick = {
+                    onFavoritesOnlyChange(!favoritesOnly)
+                    menuExpanded = false
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Star,
+                        contentDescription = null,
+                        tint = if (favoritesOnly) StudioAmber400 else StudioSlate400
+                    )
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun RecentFilesHeader(
+    count: Int,
+    currentSort: SortOption,
+    onSortChange: (SortOption) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Recent Files", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.width(6.dp))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(StudioSlate200)
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
+            ) {
+                Text("$count", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = StudioSlate600)
+            }
+        }
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(StudioSlate200)
+                .padding(2.dp)
+        ) {
+            SortPill("Date", currentSort == SortOption.DATE) { onSortChange(SortOption.DATE) }
+            SortPill("Name", currentSort == SortOption.NAME) { onSortChange(SortOption.NAME) }
+        }
+    }
+}
+
+@Composable
+private fun SortPill(label: String, selected: Boolean, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(10.dp),
+        color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,
+        shadowElevation = if (selected) 1.dp else 0.dp
+    ) {
+        Text(
+            label,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            color = if (selected) StudioIndigo600 else StudioSlate600
+        )
+    }
+}
+
+@Composable
+private fun RecentFileCard(
+    file: RecentFileItem,
+    onTap: () -> Unit,
+    onFavoriteToggle: () -> Unit,
+    onShare: () -> Unit,
+    onRemove: () -> Unit
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    Card(
+        onClick = onTap,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(StudioRed50)
+                    .border(1.dp, StudioRed100, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.PictureAsPdf, contentDescription = null, tint = StudioRed500, modifier = Modifier.size(18.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(file.fileName, fontWeight = FontWeight.SemiBold, maxLines = 1, style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    "${file.openedAt} • ${formatFileSize(file.fileSizeBytes)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = StudioSlate400,
+                    maxLines = 1
+                )
+            }
+            IconButton(onClick = onFavoriteToggle) {
+                Icon(
+                    Icons.Default.Star,
+                    contentDescription = "Favorite",
+                    tint = if (file.isFavorite) StudioAmber400 else StudioSlate400
+                )
+            }
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "More options", tint = StudioSlate500)
+                }
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Share") },
+                        onClick = {
+                            menuExpanded = false
+                            onShare()
+                        },
+                        leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Remove from list") },
+                        onClick = {
+                            menuExpanded = false
+                            onRemove()
+                        },
+                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyFilesMessage(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.bodyMedium,
+        textAlign = TextAlign.Center,
+        color = StudioSlate500,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 24.dp)
+    )
+}
+
+@Composable
 private fun HomeScreen(
     recentFiles: List<RecentFileItem>,
     onOpenPdf: () -> Unit,
     onPhotoClick: () -> Unit,
+    onScanDoc: () -> Unit,
     onFileTap: (Uri) -> Unit,
     onSettingsTap: () -> Unit,
-    onToggleFavorite: (RecentFileItem) -> Unit
+    onToggleFavorite: (RecentFileItem) -> Unit,
+    onRemove: (RecentFileItem) -> Unit,
+    onShare: (RecentFileItem) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var currentSort by remember { mutableStateOf(SortOption.DATE) }
+    var favoritesOnly by remember { mutableStateOf(false) }
 
     val filteredFiles = recentFiles
         .filter { it.fileName.contains(searchQuery, ignoreCase = true) }
+        .filter { !favoritesOnly || it.isFavorite }
         .sortedWith(
             when (currentSort) {
                 SortOption.DATE -> compareByDescending { it.timestamp }
@@ -976,154 +1559,150 @@ private fun HomeScreen(
         )
 
     Column(
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+        modifier = Modifier
+            .fillMaxSize()
+            .background(StudioSlate50)
     ) {
-        TopBarHome(onSettingsTap)
+        DashboardTopBar(subtitle = "Cloud Synced", onSettingsTap = onSettingsTap)
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 100.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            item { WelcomeSection(onOpenPdf) }
-            item { ImportSourcesSection(onOpenPdf, onPhotoClick) }
+            item { HeroBanner(onOpenPdf, onScanDoc) }
+            item { ImportGridSection(onOpenPdf, onPhotoClick, onOpenPdf, onScanDoc) }
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Search recent PDFs...") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "Recent Files (${filteredFiles.size})",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            FilterChip(
-                                selected = currentSort == SortOption.DATE,
-                                onClick = { currentSort = SortOption.DATE },
-                                label = { Text("Date") }
-                            )
-                            FilterChip(
-                                selected = currentSort == SortOption.NAME,
-                                onClick = { currentSort = SortOption.NAME },
-                                label = { Text("Name") }
-                            )
-                        }
-                    }
-                }
+                DashboardSearchBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    favoritesOnly = favoritesOnly,
+                    onFavoritesOnlyChange = { favoritesOnly = it }
+                )
+            }
+            item {
+                RecentFilesHeader(
+                    count = filteredFiles.size,
+                    currentSort = currentSort,
+                    onSortChange = { currentSort = it }
+                )
             }
             if (filteredFiles.isNotEmpty()) {
                 items(filteredFiles, key = { it.uri }) { file ->
-                    RecentFileListItem(
+                    RecentFileCard(
                         file = file,
                         onTap = { onFileTap(Uri.parse(file.uri)) },
-                        onFavoriteToggle = { onToggleFavorite(file) }
+                        onFavoriteToggle = { onToggleFavorite(file) },
+                        onShare = { onShare(file) },
+                        onRemove = { onRemove(file) }
                     )
                 }
             } else if (recentFiles.isEmpty()) {
-                item {
-                    Text(
-                        "No recent PDF files found. Open a file to get started!",
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
-                    )
-                }
+                item { EmptyFilesMessage("No recent PDF files found. Open a file to get started!") }
             } else {
-                item {
-                    Text(
-                        "No recent PDFs match your search.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
-                    )
-                }
-            }
-            item { QuickActionsSection(onOpenPdf) }
-        }
-    }
-}
-
-@Composable
-private fun TopBarHome(onSettingsTap: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text("PDF Studio", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        IconButton(onClick = onSettingsTap) {
-            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color(0xFF6366F1))
-        }
-    }
-}
-
-@Composable
-private fun WelcomeSection(onOpenPdf: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF6366F1)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(48.dp), tint = Color.White)
-            Spacer(Modifier.height(16.dp))
-            Text("PDF Reader & Editor", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
-            Spacer(Modifier.height(8.dp))
-            Text("Read, annotate, highlight & organize all your PDFs easily.", textAlign = TextAlign.Center, color = Color.White.copy(alpha = 0.9f))
-            Spacer(Modifier.height(20.dp))
-            Button(
-                onClick = onOpenPdf,
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White)
-            ) {
-                Text("Open PDF", color = Color(0xFF6366F1), fontWeight = FontWeight.Bold)
+                item { EmptyFilesMessage("No recent PDFs match your search.") }
             }
         }
     }
 }
 
 @Composable
-private fun RecentFileListItem(
-    file: RecentFileItem,
-    onTap: () -> Unit,
-    onFavoriteToggle: () -> Unit
+private fun FilesScreen(
+    recentFiles: List<RecentFileItem>,
+    onFileTap: (Uri) -> Unit,
+    onToggleFavorite: (RecentFileItem) -> Unit,
+    onRemove: (RecentFileItem) -> Unit,
+    onShare: (RecentFileItem) -> Unit
 ) {
-    Card(
-        onClick = onTap,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    var searchQuery by remember { mutableStateOf("") }
+    var currentSort by remember { mutableStateOf(SortOption.DATE) }
+    var favoritesOnly by remember { mutableStateOf(false) }
+
+    val filteredFiles = recentFiles
+        .filter { it.fileName.contains(searchQuery, ignoreCase = true) }
+        .filter { !favoritesOnly || it.isFavorite }
+        .sortedWith(
+            when (currentSort) {
+                SortOption.DATE -> compareByDescending { it.timestamp }
+                SortOption.NAME -> compareBy { it.fileName.lowercase() }
+            }
+        )
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(StudioSlate50)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(horizontal = 20.dp, vertical = 18.dp)
         ) {
-            Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(36.dp), tint = Color(0xFFEF4444))
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(file.fileName, fontWeight = FontWeight.Bold, maxLines = 1)
-                Text("${file.openedAt} • ${formatFileSize(file.fileSizeBytes)}", style = MaterialTheme.typography.labelSmall)
+            Text("My Files", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        }
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 100.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            item {
+                DashboardSearchBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    favoritesOnly = favoritesOnly,
+                    onFavoritesOnlyChange = { favoritesOnly = it }
+                )
             }
-            IconButton(onClick = onFavoriteToggle) {
-                Icon(
-                    Icons.Default.Star,
-                    contentDescription = "Favorite",
-                    tint = if (file.isFavorite) Color(0xFFFFB800) else Color.LightGray
+            item {
+                RecentFilesHeader(
+                    count = filteredFiles.size,
+                    currentSort = currentSort,
+                    onSortChange = { currentSort = it }
+                )
+            }
+            if (filteredFiles.isNotEmpty()) {
+                items(filteredFiles, key = { it.uri }) { file ->
+                    RecentFileCard(
+                        file = file,
+                        onTap = { onFileTap(Uri.parse(file.uri)) },
+                        onFavoriteToggle = { onToggleFavorite(file) },
+                        onShare = { onShare(file) },
+                        onRemove = { onRemove(file) }
+                    )
+                }
+            } else if (recentFiles.isEmpty()) {
+                item { EmptyFilesMessage("No PDF files yet. Open one from Home to get started!") }
+            } else {
+                item { EmptyFilesMessage("No files match your search.") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ToolsScreen() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(StudioSlate50)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(horizontal = 20.dp, vertical = 18.dp)
+        ) {
+            Text("Tools", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        }
+        Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(Icons.Default.Build, contentDescription = null, tint = StudioSlate400, modifier = Modifier.size(40.dp))
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "More PDF tools are coming soon.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = StudioSlate500,
+                    textAlign = TextAlign.Center
                 )
             }
         }
@@ -1131,38 +1710,66 @@ private fun RecentFileListItem(
 }
 
 @Composable
-private fun QuickActionsSection(onOpenPdf: () -> Unit) {
-    Column {
-        Text("Quick Actions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(12.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            QuickActionCard(Icons.Default.Add, "Open PDF", Modifier.weight(1f), onOpenPdf)
-            QuickActionCard(Icons.Default.Edit, "Edit PDF", Modifier.weight(1f), onOpenPdf)
+private fun BottomNavBar(
+    currentScreen: AppScreen,
+    onTabSelected: (AppScreen) -> Unit,
+    onScanClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 8.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            NavTabItem(Icons.Default.GridView, "Home", currentScreen == AppScreen.HOME) { onTabSelected(AppScreen.HOME) }
+            NavTabItem(Icons.Default.Description, "Files", currentScreen == AppScreen.FILES) { onTabSelected(AppScreen.FILES) }
+            Surface(
+                onClick = onScanClick,
+                shape = CircleShape,
+                color = PdfPrimary,
+                shadowElevation = 4.dp,
+                modifier = Modifier
+                    .size(48.dp)
+                    .offset(y = (-14).dp)
+            ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Icon(Icons.Default.Add, contentDescription = "Scan document", tint = Color.White)
+                }
+            }
+            NavTabItem(Icons.Default.Build, "Tools", currentScreen == AppScreen.TOOLS) { onTabSelected(AppScreen.TOOLS) }
+            NavTabItem(Icons.Default.Person, "Account", currentScreen == AppScreen.SETTINGS) { onTabSelected(AppScreen.SETTINGS) }
         }
     }
 }
 
 @Composable
-private fun QuickActionCard(
+private fun NavTabItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    modifier: Modifier = Modifier,
+    label: String,
+    selected: Boolean,
     onClick: () -> Unit
 ) {
-    Card(
-        onClick = onClick,
-        modifier = modifier.height(110.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    val tint = if (selected) PdfPrimary else StudioSlate400
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(32.dp), tint = Color(0xFF6366F1))
-            Spacer(Modifier.height(8.dp))
-            Text(title, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-        }
+        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.height(2.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = tint, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
     }
 }
+
 
 @Composable
 private fun EditorScreen(
@@ -1179,6 +1786,7 @@ private fun EditorScreen(
     rendererMutex: Mutex,
     isBusy: Boolean,
     hasUnsavedChanges: Boolean,
+    hasUndoHistory: Boolean,
     onPageChange: (Int) -> Unit,
     onZoomChange: (Float) -> Unit,
     onModeChange: (EditorMode) -> Unit,
@@ -1190,244 +1798,773 @@ private fun EditorScreen(
     onUndo: () -> Unit,
     onSaveClick: () -> Unit,
     onShareClick: (Uri) -> Unit,
-    onBackClick: () -> Unit
-) {
-    Scaffold(
-        topBar = {
-            EditorTopBar(
-                fileName = resolveFileName(LocalContext.current, pdfUri),
-                onShareClick = { onShareClick(pdfUri) },
-                onSaveClick = onSaveClick,
-                onBackClick = onBackClick,
-                saveEnabled = !isBusy,
-                shareEnabled = !isBusy,
-                hasUnsavedChanges = hasUnsavedChanges
-            )
-        },
-        bottomBar = {
-            EditorBottomBar(
-                editorMode = editorMode,
-                onModeChange = onModeChange,
-                onColorChange = onColorChange,
-                strokeWidth = strokeWidth,
-                onWidthChange = onWidthChange,
-                zoomLevel = zoomLevel,
-                onZoomChange = onZoomChange,
-                canUndo = pageStrokes.values.any { it.isNotEmpty() } || pageTexts.values.any { it.isNotEmpty() },
-                onUndo = onUndo
-            )
-        }
-    ) { innerPadding ->
-        PdfViewerWithSwipe(
-            renderer = renderer,
-            currentPage = currentPage,
-            pageCount = pageCount,
-            zoomLevel = zoomLevel,
-            editorMode = editorMode,
-            currentColor = currentColor,
-            strokeWidth = strokeWidth,
-            strokes = pageStrokes[currentPage].orEmpty(),
-            texts = pageTexts[currentPage].orEmpty(),
-            rendererMutex = rendererMutex,
-            modifier = Modifier.padding(innerPadding),
-            onPageChange = onPageChange,
-            onStrokeAdded = { onStrokeAdded(currentPage, it) },
-            onTextAdded = { onTextAdded(currentPage, it) },
-            onEraseAt = { onEraseAt(currentPage, it) }
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun EditorTopBar(
-    fileName: String,
-    onShareClick: () -> Unit,
-    onSaveClick: () -> Unit,
     onBackClick: () -> Unit,
-    saveEnabled: Boolean,
-    shareEnabled: Boolean,
-    hasUnsavedChanges: Boolean
+    onEditorAction: (String) -> Unit = {}
 ) {
-    TopAppBar(
-        title = {
-            Column {
-                Text(fileName, fontWeight = FontWeight.Bold, maxLines = 1)
-                if (hasUnsavedChanges) Text("Unsaved changes", style = MaterialTheme.typography.labelSmall)
-            }
-        },
-        navigationIcon = {
-            IconButton(onClick = onBackClick) { Icon(Icons.Default.Close, contentDescription = "Back") }
-        },
-        actions = {
-            IconButton(onClick = onSaveClick, enabled = saveEnabled) { Icon(Icons.Default.Save, contentDescription = "Save PDF") }
-            IconButton(onClick = onShareClick, enabled = shareEnabled) { Icon(Icons.Default.Share, contentDescription = "Share PDF") }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color(0xFF6366F1),
-            titleContentColor = Color.White,
-            navigationIconContentColor = Color.White,
-            actionIconContentColor = Color.White
-        )
-    )
-}
+    val context = LocalContext.current
+    val fileName = remember(pdfUri) { resolveFileName(context, pdfUri) }
+    val editorScope = rememberCoroutineScope()
+    val editorListState = androidx.compose.foundation.lazy.rememberLazyListState()
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun EditorBottomBar(
-    editorMode: EditorMode,
-    onModeChange: (EditorMode) -> Unit,
-    onColorChange: (Color) -> Unit,
-    strokeWidth: Float,
-    onWidthChange: (Float) -> Unit,
-    zoomLevel: Float,
-    onZoomChange: (Float) -> Unit,
-    canUndo: Boolean,
-    onUndo: () -> Unit
-) {
-    Column {
-        if (editorMode == EditorMode.DRAW || editorMode == EditorMode.HIGHLIGHT || editorMode == EditorMode.TEXT) {
-            Row(
-                modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant).padding(horizontal = 12.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+    val editorBackground = Color(0xFF0B1326)
+    val editorSurface = Color(0xFF131B2E)
+    val editorSurfaceHigh = Color(0xFF222A3D)
+    val editorSurfaceHighest = Color(0xFF2D3449)
+    val editorPrimary = Color(0xFF2563EB)
+    val editorPrimaryLight = Color(0xFFB4C5FF)
+    val editorSecondary = Color(0xFF4EDEA3)
+    val editorAmber = Color(0xFFFFB95F)
+    val editorText = Color(0xFFDAE2FD)
+    val editorMuted = Color(0xFFC3C6D7)
+    val editorOutline = Color(0xFF8D90A0)
+
+    fun selectTool(tool: EditorMode) {
+        onModeChange(tool)
+    }
+
+    Scaffold(
+        containerColor = editorBackground,
+        topBar = {
+            Surface(
+                color = editorSurface.copy(alpha = 0.96f),
+                tonalElevation = 0.dp,
+                shadowElevation = 8.dp
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val colors = if (editorMode == EditorMode.HIGHLIGHT) {
-                        listOf(
-                            Color.Yellow.copy(alpha = DEFAULT_HIGHLIGHT_ALPHA),
-                            Color.Green.copy(alpha = DEFAULT_HIGHLIGHT_ALPHA),
-                            Color.Cyan.copy(alpha = DEFAULT_HIGHLIGHT_ALPHA),
-                            Color.Magenta.copy(alpha = DEFAULT_HIGHLIGHT_ALPHA)
-                        )
-                    } else {
-                        listOf(Color.Red, Color.Blue, Color.Green, Color.Black, Color.Yellow)
-                    }
-                    colors.forEach { color ->
+                Column {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .height(64.dp)
+                            .padding(horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = onBackClick,
+                            modifier = Modifier.size(44.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Back",
+                                tint = editorText,
+                                modifier = Modifier.size(23.dp)
+                            )
+                        }
+
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                "Document Editor",
+                                color = editorText,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1
+                            )
+                            Text(
+                                fileName,
+                                color = editorMuted.copy(alpha = 0.8f),
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                onEditorAction("Flash controls are not connected to the current PDF engine.")
+                            },
+                            modifier = Modifier.size(42.dp)
+                        ) {
+                            Text(
+                                "⚡",
+                                color = editorMuted,
+                                fontSize = 19.sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { onShareClick(pdfUri) },
+                            enabled = !isBusy,
+                            modifier = Modifier.size(42.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Share,
+                                contentDescription = "Share PDF",
+                                tint = if (isBusy) editorOutline else editorText,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
                         Box(
                             modifier = Modifier
-                                .size(28.dp)
-                                .background(color, RoundedCornerShape(50))
-                                .pointerInput(color) { detectTapGestures { onColorChange(color) } }
-                        )
-                    }
-                }
-                if (editorMode != EditorMode.TEXT) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        listOf(4f to "S", 12f to "M", 28f to "L").forEach { (width, label) ->
-                            FilterChip(
-                                selected = strokeWidth == width,
-                                onClick = { onWidthChange(width) },
-                                label = { Text(label, fontSize = 10.sp) }
+                                .padding(start = 2.dp)
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(editorPrimary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "PDF",
+                                color = Color.White,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
                 }
             }
         }
-
-        BottomAppBar(containerColor = MaterialTheme.colorScheme.surface) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(1.dp)) {
-                    EditorModeButton(Icons.Default.Image, "View", editorMode == EditorMode.VIEW) { onModeChange(EditorMode.VIEW) }
-                    EditorModeButton(Icons.Default.Edit, "Draw", editorMode == EditorMode.DRAW) {
-                        onModeChange(EditorMode.DRAW); onColorChange(Color.Red); onWidthChange(8f)
-                    }
-                    EditorModeButton(Icons.Default.Edit, "Highlight", editorMode == EditorMode.HIGHLIGHT) {
-                        onModeChange(EditorMode.HIGHLIGHT); onColorChange(Color.Yellow.copy(alpha = DEFAULT_HIGHLIGHT_ALPHA)); onWidthChange(28f)
-                    }
-                    EditorModeButton(Icons.Default.Description, "Text", editorMode == EditorMode.TEXT) { onModeChange(EditorMode.TEXT) }
-                    EditorModeButton(Icons.Default.Delete, "Erase", editorMode == EditorMode.ERASE) { onModeChange(EditorMode.ERASE) }
-                    IconButton(onClick = onUndo, enabled = canUndo) {
-                        Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo", modifier = Modifier.size(18.dp))
-                    }
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { onZoomChange(zoomLevel - 0.2f) }, enabled = zoomLevel > 1f) { Text("−", fontWeight = FontWeight.Bold, fontSize = 18.sp) }
-                    Text("${(zoomLevel * 100).toInt()}%", fontSize = 11.sp, modifier = Modifier.padding(horizontal = 2.dp))
-                    IconButton(onClick = { onZoomChange(zoomLevel + 0.2f) }, enabled = zoomLevel < 3f) { Text("+", fontWeight = FontWeight.Bold, fontSize = 18.sp) }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EditorModeButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    IconButton(
-        onClick = onClick,
-        modifier = Modifier.size(40.dp),
-        colors = IconButtonDefaults.iconButtonColors(
-            containerColor = if (isSelected) Color(0xFF6366F1).copy(alpha = 0.2f) else Color.Transparent
-        )
-    ) {
-        Icon(icon, contentDescription = label, modifier = Modifier.size(18.dp))
-    }
-}
-
-@Composable
-private fun PdfViewerWithSwipe(
-    renderer: PdfRenderer,
-    currentPage: Int,
-    pageCount: Int,
-    zoomLevel: Float,
-    editorMode: EditorMode,
-    currentColor: Color,
-    strokeWidth: Float,
-    strokes: List<PdfStroke>,
-    texts: List<PdfText>,
-    rendererMutex: Mutex,
-    modifier: Modifier = Modifier,
-    onPageChange: (Int) -> Unit,
-    onStrokeAdded: (PdfStroke) -> Unit,
-    onTextAdded: (PdfText) -> Unit,
-    onEraseAt: (Offset) -> Unit
-) {
-    Box(
-        modifier = modifier.fillMaxSize().background(Color.White)
-            .pointerInput(editorMode, zoomLevel, currentPage, pageCount) {
-                if (editorMode == EditorMode.VIEW && zoomLevel == 1f) {
-                    detectHorizontalDragGestures { change, dragAmount ->
-                        change.consume()
-                        when {
-                            dragAmount < -80f && currentPage < pageCount - 1 -> onPageChange(currentPage + 1)
-                            dragAmount > 80f && currentPage > 0 -> onPageChange(currentPage - 1)
+    ) { innerPadding ->
+        LazyColumn(
+            state = editorListState,
+            modifier = Modifier
+                .fillMaxSize()
+                .background(editorBackground)
+                .padding(innerPadding),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = 12.dp,
+                bottom = 28.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = editorSurface,
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 11.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                fileName,
+                                color = editorText,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+                            Spacer(Modifier.height(3.dp))
+                            Text(
+                                "${pageCount} pages • ${if (hasUnsavedChanges) "Unsaved changes" else "Ready to edit"}",
+                                color = editorMuted.copy(alpha = 0.78f),
+                                fontSize = 11.sp
+                            )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (hasUnsavedChanges) editorAmber.copy(alpha = 0.12f)
+                            else editorSecondary.copy(alpha = 0.10f)
+                        ) {
+                            Text(
+                                if (hasUnsavedChanges) "CHANGES" else "READY",
+                                color = if (hasUnsavedChanges) editorAmber else editorSecondary,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                            )
                         }
                     }
                 }
             }
-    ) {
-        Column(Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier.fillMaxWidth().background(Color(0xFFF3F4F6)).padding(12.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Page ${currentPage + 1} / $pageCount", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium, color = Color.Black)
+
+            item {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = editorSurface.copy(alpha = 0.90f),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = editorOutline,
+                            modifier = Modifier.size(19.dp)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            "Search within PDF",
+                            color = editorMuted,
+                            fontSize = 13.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Surface(
+                            onClick = { onEditorAction("PDF text search is not connected yet.") },
+                            shape = RoundedCornerShape(8.dp),
+                            color = editorSurfaceHigh
+                        ) {
+                            Text(
+                                "Search",
+                                color = editorPrimaryLight,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
             }
-            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                PdfPage(
-                    renderer = renderer,
-                    pageIndex = currentPage,
-                    zoomLevel = zoomLevel,
-                    editorMode = editorMode,
-                    currentColor = currentColor,
-                    strokeWidth = strokeWidth,
-                    strokes = strokes,
-                    texts = texts,
-                    rendererMutex = rendererMutex,
-                    onStrokeAdded = onStrokeAdded,
-                    onTextAdded = onTextAdded,
-                    onEraseAt = onEraseAt
-                )
+
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color(0xFF060E20),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "DOCUMENT VIEW",
+                                color = editorOutline,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.1.sp
+                            )
+                            Text(
+                                "A4 • PAGE ${"%02d".format(currentPage + 1)} / ${"%02d".format(pageCount)}",
+                                color = editorMuted,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(440.dp)
+                                .background(Color(0xFF090D16)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            PdfPage(
+                                renderer = renderer,
+                                pageIndex = currentPage,
+                                zoomLevel = zoomLevel,
+                                editorMode = editorMode,
+                                currentColor = currentColor,
+                                strokeWidth = strokeWidth,
+                                strokes = pageStrokes[currentPage].orEmpty(),
+                                texts = pageTexts[currentPage].orEmpty(),
+                                rendererMutex = rendererMutex,
+                                onStrokeAdded = { onStrokeAdded(currentPage, it) },
+                                onTextAdded = { onTextAdded(currentPage, it) },
+                                onEraseAt = { onEraseAt(currentPage, it) }
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = editorSurfaceHigh
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    IconButton(
+                                        onClick = { onPageChange(currentPage - 1) },
+                                        enabled = currentPage > 0,
+                                        modifier = Modifier.size(30.dp)
+                                    ) {
+                                        Text(
+                                            "‹",
+                                            color = if (currentPage > 0) editorText else editorOutline,
+                                            fontSize = 24.sp,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                    Text(
+                                        "Page ${currentPage + 1} of $pageCount",
+                                        color = editorText,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.padding(horizontal = 5.dp)
+                                    )
+                                    IconButton(
+                                        onClick = { onPageChange(currentPage + 1) },
+                                        enabled = currentPage < pageCount - 1,
+                                        modifier = Modifier.size(30.dp)
+                                    ) {
+                                        Text(
+                                            "›",
+                                            color = if (currentPage < pageCount - 1) editorText else editorOutline,
+                                            fontSize = 24.sp,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = editorSurfaceHigh
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    IconButton(
+                                        onClick = { onZoomChange((zoomLevel - 0.15f).coerceAtLeast(1f)) },
+                                        enabled = zoomLevel > 1f,
+                                        modifier = Modifier.size(30.dp)
+                                    ) {
+                                        Text(
+                                            "−",
+                                            color = if (zoomLevel > 1f) editorText else editorOutline,
+                                            fontSize = 18.sp,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                    Text(
+                                        "${(zoomLevel * 100).toInt()}%",
+                                        color = editorPrimaryLight,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 6.dp)
+                                    )
+                                    IconButton(
+                                        onClick = { onZoomChange((zoomLevel + 0.15f).coerceAtMost(3f)) },
+                                        enabled = zoomLevel < 3f,
+                                        modifier = Modifier.size(30.dp)
+                                    ) {
+                                        Text(
+                                            "+",
+                                            color = if (zoomLevel < 3f) editorText else editorOutline,
+                                            fontSize = 18.sp,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = editorSurface,
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.07f))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "ANNOTATION STUDIO",
+                                color = editorOutline,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.1.sp
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(editorSecondary)
+                                )
+                                Spacer(Modifier.width(5.dp))
+                                Text(
+                                    "Manual Save",
+                                    color = editorSecondary,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            EditorToolButton(
+                                label = "Select",
+                                icon = Icons.Default.Image,
+                                selected = editorMode == EditorMode.VIEW,
+                                primary = editorPrimary,
+                                textColor = editorText,
+                                modifier = Modifier.weight(1f),
+                                onClick = { selectTool(EditorMode.VIEW) }
+                            )
+                            EditorToolButton(
+                                label = "Mark",
+                                icon = Icons.Default.Edit,
+                                selected = editorMode == EditorMode.HIGHLIGHT,
+                                primary = editorPrimary,
+                                textColor = editorText,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    onModeChange(EditorMode.HIGHLIGHT)
+                                    onColorChange(Color.Yellow.copy(alpha = DEFAULT_HIGHLIGHT_ALPHA))
+                                    onWidthChange(28f)
+                                }
+                            )
+                            EditorToolButton(
+                                label = "Sign",
+                                icon = Icons.Default.Edit,
+                                selected = false,
+                                primary = editorPrimary,
+                                textColor = editorText,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    onModeChange(EditorMode.TEXT)
+                                    onEditorAction("Sign mode currently uses the existing text annotation tool.")
+                                }
+                            )
+                            EditorToolButton(
+                                label = "Stamp",
+                                icon = Icons.Default.Star,
+                                selected = false,
+                                primary = editorPrimary,
+                                textColor = editorText,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    onEditorAction("Stamp support is not connected to the current PDF engine.")
+                                }
+                            )
+                            EditorToolButton(
+                                label = "Pages",
+                                icon = Icons.Default.GridView,
+                                selected = false,
+                                primary = editorPrimary,
+                                textColor = editorText,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    editorScope.launch {
+                                        editorListState.animateScrollToItem(4)
+                                    }
+                                }
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 2.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Ink", color = editorMuted, fontSize = 10.sp)
+                                val palette = listOf(
+                                    Color(0xFFFFB95F),
+                                    editorSecondary,
+                                    Color(0xFFB4C5FF)
+                                )
+                                palette.forEach { swatch ->
+                                    Surface(
+                                        onClick = {
+                                            onColorChange(
+                                                if (editorMode == EditorMode.HIGHLIGHT) swatch.copy(alpha = DEFAULT_HIGHLIGHT_ALPHA)
+                                                else swatch
+                                            )
+                                        },
+                                        shape = CircleShape,
+                                        color = swatch,
+                                        modifier = Modifier.size(23.dp),
+                                        border = if (currentColor == swatch || currentColor == swatch.copy(alpha = DEFAULT_HIGHLIGHT_ALPHA))
+                                            BorderStroke(2.dp, editorPrimary)
+                                        else null
+                                    ) {}
+                                }
+                            }
+
+                            TextButton(
+                                onClick = { onUndo() },
+                                enabled = hasUndoHistory
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.Undo,
+                                    contentDescription = "Undo",
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text("Undo", fontSize = 11.sp)
+                            }
+                        }
+
+                        if (
+                            editorMode == EditorMode.DRAW ||
+                            editorMode == EditorMode.HIGHLIGHT ||
+                            editorMode == EditorMode.TEXT ||
+                            editorMode == EditorMode.ERASE
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(editorSurfaceHigh)
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    when (editorMode) {
+                                        EditorMode.DRAW -> "Drawing mode"
+                                        EditorMode.HIGHLIGHT -> "Highlight mode"
+                                        EditorMode.TEXT -> "Text mode"
+                                        EditorMode.ERASE -> "Erase mode"
+                                        else -> ""
+                                    },
+                                    color = editorMuted,
+                                    fontSize = 10.sp
+                                )
+
+                                if (editorMode != EditorMode.TEXT) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        listOf(4f to "S", 12f to "M", 28f to "L").forEach { (width, label) ->
+                                            FilterChip(
+                                                selected = strokeWidth == width,
+                                                onClick = { onWidthChange(width) },
+                                                label = { Text(label, fontSize = 9.sp) }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    color = editorSurface.copy(alpha = 0.86f)
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 10.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.GridView,
+                                    contentDescription = null,
+                                    tint = editorMuted,
+                                    modifier = Modifier.size(17.dp)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    "Reorder Pages",
+                                    color = editorMuted,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Text(
+                                "Tap a page to edit",
+                                color = editorOutline,
+                                fontSize = 9.sp
+                            )
+                        }
+
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(
+                                count = pageCount,
+                                key = { index -> "editor-thumb-$index" }
+                            ) { index ->
+                                EditorPageThumbnail(
+                                    renderer = renderer,
+                                    pageIndex = index,
+                                    selected = index == currentPage,
+                                    rendererMutex = rendererMutex,
+                                    onClick = { onPageChange(index) }
+                                )
+                            }
+
+                            item {
+                                Surface(
+                                    onClick = {
+                                        onEditorAction("Insert page is not connected to the current PDF engine.")
+                                    },
+                                    modifier = Modifier.size(width = 64.dp, height = 88.dp),
+                                    shape = RoundedCornerShape(9.dp),
+                                    color = editorSurfaceHigh,
+                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
+                                ) {
+                                    Column(
+                                        modifier = Modifier.fillMaxSize(),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Add,
+                                            contentDescription = "Add page",
+                                            tint = editorMuted,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(Modifier.height(5.dp))
+                                        Text(
+                                            "+ Page",
+                                            color = editorMuted,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    EditorMetaCard(
+                        title = "PAGE",
+                        value = "${"%02d".format(currentPage + 1)} / ${"%02d".format(pageCount)}",
+                        tint = editorPrimaryLight,
+                        modifier = Modifier.weight(1f)
+                    )
+                    EditorMetaCard(
+                        title = "EDIT STATE",
+                        value = if (hasUnsavedChanges) "UNSAVED" else "SAVED",
+                        tint = if (hasUnsavedChanges) editorAmber else editorSecondary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    EditorMetaCard(
+                        title = "PDF ENGINE",
+                        value = "ANDROID",
+                        tint = editorMuted,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            item {
+                Surface(
+                    shape = RoundedCornerShape(15.dp),
+                    color = editorSurface,
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.07f))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "EXPORT & EXECUTION",
+                                color = editorOutline,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.0.sp
+                            )
+                            Text(
+                                if (hasUnsavedChanges) "Changes pending" else "Document ready",
+                                color = if (hasUnsavedChanges) editorAmber else editorSecondary,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        Button(
+                            onClick = onSaveClick,
+                            enabled = !isBusy,
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = editorPrimary)
+                        ) {
+                            Icon(
+                                Icons.Default.Save,
+                                contentDescription = null,
+                                modifier = Modifier.size(19.dp)
+                            )
+                            Spacer(Modifier.width(7.dp))
+                            Text(
+                                "Save PDF",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextButton(
+                                label = "Export Text",
+                                icon = Icons.Default.Description,
+                                onClick = { onEditorAction("Text export is not connected to the current PDF engine.") },
+                                modifier = Modifier.weight(1f),
+                                tint = editorMuted
+                            )
+                            OutlinedTextButton(
+                                label = "E-Sign",
+                                icon = Icons.Default.Edit,
+                                onClick = { onEditorAction("E-signature is not connected to the current PDF engine.") },
+                                modifier = Modifier.weight(1f),
+                                tint = editorMuted
+                            )
+                            OutlinedTextButton(
+                                label = "Share",
+                                icon = Icons.Default.Share,
+                                onClick = { onShareClick(pdfUri) },
+                                modifier = Modifier.weight(1f),
+                                tint = editorMuted,
+                                enabled = !isBusy
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -1689,6 +2826,260 @@ private fun PdfPage(
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+
+@Composable
+private fun EditorToolButton(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    selected: Boolean,
+    primary: Color,
+    textColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        color = if (selected) primary else Color(0xFF222A3D)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 10.dp, horizontal = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                icon,
+                contentDescription = label,
+                tint = if (selected) Color.White else textColor.copy(alpha = 0.82f),
+                modifier = Modifier.size(19.dp)
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                label,
+                color = if (selected) Color.White else textColor.copy(alpha = 0.80f),
+                fontSize = 9.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+            )
+        }
+    }
+}
+
+@Composable
+private fun EditorMetaCard(
+    title: String,
+    value: String,
+    tint: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(11.dp),
+        color = Color(0xFF131B2E),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp)
+        ) {
+            Text(
+                title,
+                color = Color(0xFF8D90A0),
+                fontSize = 8.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.8.sp
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                value,
+                color = tint,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+private fun OutlinedTextButton(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    tint: Color = Color.White,
+    enabled: Boolean = true
+) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.height(44.dp),
+        shape = RoundedCornerShape(10.dp),
+        color = Color.Transparent,
+        border = BorderStroke(
+            1.dp,
+            if (enabled) Color.White.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.05f)
+        )
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 7.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                icon,
+                contentDescription = label,
+                tint = if (enabled) tint else tint.copy(alpha = 0.35f),
+                modifier = Modifier.size(15.dp)
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(
+                label,
+                color = if (enabled) tint else tint.copy(alpha = 0.35f),
+                fontSize = 9.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+private fun EditorPageThumbnail(
+    renderer: PdfRenderer,
+    pageIndex: Int,
+    selected: Boolean,
+    rendererMutex: Mutex,
+    onClick: () -> Unit
+) {
+    var thumbnail by remember(pageIndex, renderer) { mutableStateOf<Bitmap?>(null) }
+    var failed by remember(pageIndex, renderer) { mutableStateOf(false) }
+
+    LaunchedEffect(pageIndex, renderer) {
+        failed = false
+        thumbnail?.let {
+            if (!it.isRecycled) it.recycle()
+        }
+        thumbnail = null
+
+        try {
+            val result = rendererMutex.withLock {
+                withContext(Dispatchers.IO) {
+                    renderer.openPage(pageIndex).use { page ->
+                        val sourceWidth = page.width.coerceAtLeast(1)
+                        val sourceHeight = page.height.coerceAtLeast(1)
+                        val thumbWidth = 110
+                        val scale = thumbWidth.toFloat() / sourceWidth.toFloat()
+                        val thumbHeight = (sourceHeight * scale).toInt().coerceAtLeast(1)
+                        val bitmap = createBitmap(
+                            thumbWidth,
+                            thumbHeight,
+                            Bitmap.Config.ARGB_8888
+                        )
+                        page.render(
+                            bitmap,
+                            null,
+                            null,
+                            PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY
+                        )
+                        bitmap.prepareToDraw()
+                        bitmap
+                    }
+                }
+            }
+
+            if (isActive) {
+                thumbnail = result
+            } else if (!result.isRecycled) {
+                result.recycle()
+            }
+        } catch (_: Exception) {
+            failed = true
+        }
+    }
+
+    DisposableEffect(thumbnail) {
+        onDispose {
+            thumbnail?.let {
+                if (!it.isRecycled) it.recycle()
+            }
+        }
+    }
+
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.size(width = 64.dp, height = 88.dp),
+        shape = RoundedCornerShape(9.dp),
+        color = if (selected) Color(0xFFDAE2FD) else Color(0xFF222A3D),
+        border = if (selected) BorderStroke(2.dp, Color(0xFF2563EB))
+        else BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize().padding(5.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            when {
+                thumbnail != null -> {
+                    Image(
+                        bitmap = thumbnail!!.asImageBitmap(),
+                        contentDescription = "Page ${pageIndex + 1}",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+                failed -> {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.Description,
+                            contentDescription = null,
+                            tint = if (selected) Color(0xFF334155) else Color(0xFF94A3B8),
+                            modifier = Modifier.size(17.dp)
+                        )
+                        Spacer(Modifier.height(3.dp))
+                        Text(
+                            "P.${pageIndex + 1}",
+                            color = if (selected) Color(0xFF334155) else Color(0xFF94A3B8),
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                else -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(15.dp),
+                        strokeWidth = 2.dp
+                    )
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(5.dp),
+                color = if (selected) Color.White.copy(alpha = 0.82f)
+                else Color(0xFF0B1326).copy(alpha = 0.80f)
+            ) {
+                Text(
+                    "P.${pageIndex + 1}",
+                    color = if (selected) Color(0xFF1E293B) else Color(0xFFDAE2FD),
+                    fontSize = 7.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+            }
+
+            if (selected) {
+                Icon(
+                    Icons.Default.Star,
+                    contentDescription = null,
+                    tint = Color(0xFF10B981),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(12.dp)
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsScreen(
     isDarkTheme: Boolean,
@@ -1705,7 +3096,11 @@ private fun SettingsScreen(
                 navigationIconContentColor = Color.White
             )
         )
-        LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 100.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             item {
                 Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                     Row(
@@ -1740,40 +3135,6 @@ private fun SettingItem(title: String, value: String) {
         ) {
             Text(title, fontWeight = FontWeight.Bold)
             Text(value, fontSize = 12.sp)
-        }
-    }
-}
-
-@Composable
-private fun ImportSourceChip(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    onClick: () -> Unit
-) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 2.dp,
-        modifier = Modifier.padding(end = 8.dp)
-    ) {
-        Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = Color(0xFF6366F1), modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-        }
-    }
-}
-
-@Composable
-private fun ImportSourcesSection(onOpenPdf: () -> Unit, onPhotoClick: () -> Unit) {
-    Column {
-        Text("Import From", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(12.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            item { ImportSourceChip(Icons.Default.PictureAsPdf, "Storage", onOpenPdf) }
-            item { ImportSourceChip(Icons.Default.Image, "Photos", onPhotoClick) }
-            item { ImportSourceChip(Icons.Default.Description, "Files", onOpenPdf) }
         }
     }
 }
