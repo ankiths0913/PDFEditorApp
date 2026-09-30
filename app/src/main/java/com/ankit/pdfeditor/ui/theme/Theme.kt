@@ -8,6 +8,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val LightColorScheme = lightColorScheme(
@@ -17,12 +18,36 @@ private val LightColorScheme = lightColorScheme(
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = PdfPrimaryDark,
-    secondary = PurpleGrey80,
-    tertiary = Pink80,
-    surface = PdfSurfaceDark,
-    surfaceVariant = PdfSurfaceVariantDark,
-    onSurface = PdfOnSurfaceDark
+    primary = PdfPrimary,
+    onPrimary = Color.White,
+    primaryContainer = PdfPrimary,
+    onPrimaryContainer = EditorDarkOnPrimaryContainer,
+    secondary = EditorDarkSecondary,
+    onSecondary = EditorDarkOnSecondary,
+    secondaryContainer = EditorDarkSecondaryContainer,
+    onSecondaryContainer = EditorDarkOnSecondaryContainer,
+    tertiary = EditorDarkTertiary,
+    onTertiary = EditorDarkOnTertiary,
+    tertiaryContainer = EditorDarkTertiaryContainer,
+    error = EditorDarkError,
+    onError = EditorDarkOnError,
+    errorContainer = EditorDarkErrorContainer,
+    onErrorContainer = EditorDarkOnErrorContainer,
+    background = EditorDarkBackground,
+    onBackground = EditorDarkOnSurface,
+    surface = EditorDarkBackground,
+    onSurface = EditorDarkOnSurface,
+    surfaceVariant = EditorDarkSurfaceContainerHighest,
+    onSurfaceVariant = EditorDarkOnSurfaceVariant,
+    outline = EditorDarkOutline,
+    outlineVariant = EditorDarkOutlineVariant,
+    surfaceDim = EditorDarkSurfaceDim,
+    surfaceBright = EditorDarkSurfaceBright,
+    surfaceContainerLowest = EditorDarkSurfaceContainerLowest,
+    surfaceContainerLow = EditorDarkSurfaceContainerLow,
+    surfaceContainer = EditorDarkSurfaceContainer,
+    surfaceContainerHigh = EditorDarkSurfaceContainerHigh,
+    surfaceContainerHighest = EditorDarkSurfaceContainerHighest
 )
 
 @Composable

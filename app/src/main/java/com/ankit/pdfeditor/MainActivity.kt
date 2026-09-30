@@ -42,7 +42,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -50,9 +49,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
@@ -64,20 +66,23 @@ import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Highlight
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -86,10 +91,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -131,6 +134,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalDensity
@@ -142,7 +146,6 @@ import androidx.core.content.edit
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
 import com.ankit.pdfeditor.ui.theme.PDFEdittorAppTheme
-import com.ankit.pdfeditor.ui.theme.PdfPrimary
 import com.ankit.pdfeditor.ui.theme.StudioAmber400
 import com.ankit.pdfeditor.ui.theme.StudioBlue50
 import com.ankit.pdfeditor.ui.theme.StudioBlue500
@@ -195,6 +198,11 @@ private const val MAX_UNDO_HISTORY = 50
 private const val MAX_DISPLAY_RENDER_DIMENSION = 1600
 private const val MAX_EXPORT_RENDER_DIMENSION = 2048
 private const val DEFAULT_HIGHLIGHT_ALPHA = 0.7f
+
+// Brand primary color used throughout the UI (matches the indigo accent used
+// by the theme module). Declared locally so this file doesn't need an extra
+// import just for a single accent color.
+private val PdfPrimary = Color(0xFF6366F1)
 
 private enum class EditorMode { VIEW, DRAW, HIGHLIGHT, TEXT, ERASE }
 private enum class AppScreen { HOME, FILES, TOOLS, EDITOR, SETTINGS }
@@ -930,97 +938,101 @@ private fun PdfStudioApp() {
                 val activeRenderer = renderer
                 val activeUri = pdfUri
                 if (activeRenderer != null && activeUri != null && pageCount > 0) {
-                    EditorScreen(
-                        renderer = activeRenderer,
-                        pdfUri = activeUri,
-                        currentPage = currentPage,
-                        pageCount = pageCount,
-                        zoomLevel = zoomLevel,
-                        editorMode = editorMode,
-                        currentColor = currentColor,
-                        strokeWidth = strokeWidth,
-                        pageStrokes = pageStrokes,
-                        pageTexts = pageTexts,
-                        rendererMutex = rendererMutex,
-                        isBusy = isBusy,
-                        hasUnsavedChanges = hasUnsavedChanges,
-                        hasUndoHistory = annotationHistory.isNotEmpty(),
-                        onPageChange = { currentPage = it.coerceIn(0, pageCount - 1) },
-                        onZoomChange = { zoomLevel = it.coerceIn(1f, 3f) },
-                        onModeChange = { editorMode = it },
-                        onColorChange = { currentColor = it },
-                        onWidthChange = { strokeWidth = it },
-                        onStrokeAdded = { pageIdx, stroke ->
-                            pageStrokes[pageIdx] = pageStrokes[pageIdx].orEmpty() + stroke
-                            pushHistory(AnnotationAction.StrokeAdded(pageIdx, stroke))
-                            setChanged()
-                        },
-                        onTextAdded = { pageIdx, text ->
-                            pageTexts[pageIdx] = pageTexts[pageIdx].orEmpty() + text
-                            pushHistory(AnnotationAction.TextAdded(pageIdx, text))
-                            setChanged()
-                        },
-                        onEraseAt = { pageIdx, point ->
-                            val strokes = pageStrokes[pageIdx].orEmpty()
-                            val texts = pageTexts[pageIdx].orEmpty()
-                            val nearestStroke = strokes.minByOrNull { strokeDistance(point, it) }
-                            val nearestStrokeDistance = nearestStroke?.let { strokeDistance(point, it) } ?: Float.MAX_VALUE
-                            val nearestText = texts.minByOrNull { hypot(point.x - it.position.x, point.y - it.position.y) }
-                            val nearestTextDistance = nearestText?.let { hypot(point.x - it.position.x, point.y - it.position.y) } ?: Float.MAX_VALUE
+                    // The editor is always dark, independent of the app-wide theme
+                    // toggle in Settings — an immersive dark canvas is the intended
+                    // design for annotating, similar to most PDF/photo editors.
+                    PDFEdittorAppTheme(darkTheme = true) {
+                        EditorScreen(
+                            renderer = activeRenderer,
+                            pdfUri = activeUri,
+                            currentPage = currentPage,
+                            pageCount = pageCount,
+                            zoomLevel = zoomLevel,
+                            editorMode = editorMode,
+                            currentColor = currentColor,
+                            strokeWidth = strokeWidth,
+                            pageStrokes = pageStrokes,
+                            pageTexts = pageTexts,
+                            rendererMutex = rendererMutex,
+                            isBusy = isBusy,
+                            hasUnsavedChanges = hasUnsavedChanges,
+                            hasUndoHistory = annotationHistory.isNotEmpty(),
+                            onPageChange = { currentPage = it.coerceIn(0, pageCount - 1) },
+                            onZoomChange = { zoomLevel = it.coerceIn(1f, 3f) },
+                            onModeChange = { editorMode = it },
+                            onColorChange = { currentColor = it },
+                            onWidthChange = { strokeWidth = it },
+                            onStrokeAdded = { pageIdx, stroke ->
+                                pageStrokes[pageIdx] = pageStrokes[pageIdx].orEmpty() + stroke
+                                pushHistory(AnnotationAction.StrokeAdded(pageIdx, stroke))
+                                setChanged()
+                            },
+                            onTextAdded = { pageIdx, text ->
+                                pageTexts[pageIdx] = pageTexts[pageIdx].orEmpty() + text
+                                pushHistory(AnnotationAction.TextAdded(pageIdx, text))
+                                setChanged()
+                            },
+                            onEraseAt = { pageIdx, point ->
+                                val strokes = pageStrokes[pageIdx].orEmpty()
+                                val texts = pageTexts[pageIdx].orEmpty()
+                                val nearestStroke = strokes.minByOrNull { strokeDistance(point, it) }
+                                val nearestStrokeDistance = nearestStroke?.let { strokeDistance(point, it) } ?: Float.MAX_VALUE
+                                val nearestText = texts.minByOrNull { hypot(point.x - it.position.x, point.y - it.position.y) }
+                                val nearestTextDistance = nearestText?.let { hypot(point.x - it.position.x, point.y - it.position.y) } ?: Float.MAX_VALUE
 
-                            when {
-                                nearestStroke != null && nearestStrokeDistance <= 0.045f -> {
-                                    pageStrokes[pageIdx] = strokes.filterNot { it.id == nearestStroke.id }
-                                    pushHistory(AnnotationAction.StrokeRemoved(pageIdx, nearestStroke))
-                                    setChanged()
+                                when {
+                                    nearestStroke != null && nearestStrokeDistance <= 0.045f -> {
+                                        pageStrokes[pageIdx] = strokes.filterNot { it.id == nearestStroke.id }
+                                        pushHistory(AnnotationAction.StrokeRemoved(pageIdx, nearestStroke))
+                                        setChanged()
+                                    }
+                                    nearestText != null && nearestTextDistance <= 0.09f -> {
+                                        pageTexts[pageIdx] = texts.filterNot { it.id == nearestText.id }
+                                        pushHistory(AnnotationAction.TextRemoved(pageIdx, nearestText))
+                                        setChanged()
+                                    }
                                 }
-                                nearestText != null && nearestTextDistance <= 0.09f -> {
-                                    pageTexts[pageIdx] = texts.filterNot { it.id == nearestText.id }
-                                    pushHistory(AnnotationAction.TextRemoved(pageIdx, nearestText))
-                                    setChanged()
+                            },
+                            onUndo = {
+                                when (val action = annotationHistory.removeLastOrNull()) {
+                                    is AnnotationAction.StrokeAdded -> {
+                                        pageStrokes[action.page] = pageStrokes[action.page].orEmpty()
+                                            .filterNot { it.id == action.stroke.id }
+                                    }
+                                    is AnnotationAction.StrokeRemoved -> {
+                                        pageStrokes[action.page] = pageStrokes[action.page].orEmpty() + action.stroke
+                                    }
+                                    is AnnotationAction.TextAdded -> {
+                                        pageTexts[action.page] = pageTexts[action.page].orEmpty()
+                                            .filterNot { it.id == action.text.id }
+                                    }
+                                    is AnnotationAction.TextRemoved -> {
+                                        pageTexts[action.page] = pageTexts[action.page].orEmpty() + action.text
+                                    }
+                                    null -> Unit
                                 }
-                            }
-                        },
-                        onUndo = {
-                            when (val action = annotationHistory.removeLastOrNull()) {
-                                is AnnotationAction.StrokeAdded -> {
-                                    pageStrokes[action.page] = pageStrokes[action.page].orEmpty()
-                                        .filterNot { it.id == action.stroke.id }
+                                setChanged()
+                            },
+                            onSaveClick = {
+                                val baseName = safeFileName(resolveFileName(context, activeUri))
+                                    .removeSuffix(".pdf")
+                                    .ifBlank { "document" }
+                                saveLauncher.launch("Edited_${baseName}.pdf")
+                            },
+                            onShareClick = { uri ->
+                                if (hasUnsavedChanges) {
+                                    errorMessage = "Save your changes before sharing the PDF."
+                                } else {
+                                    try {
+                                        sharePdf(context, uri)
+                                    } catch (e: Exception) {
+                                        errorMessage = e.message ?: "Could not share PDF"
+                                    }
                                 }
-                                is AnnotationAction.StrokeRemoved -> {
-                                    pageStrokes[action.page] = pageStrokes[action.page].orEmpty() + action.stroke
-                                }
-                                is AnnotationAction.TextAdded -> {
-                                    pageTexts[action.page] = pageTexts[action.page].orEmpty()
-                                        .filterNot { it.id == action.text.id }
-                                }
-                                is AnnotationAction.TextRemoved -> {
-                                    pageTexts[action.page] = pageTexts[action.page].orEmpty() + action.text
-                                }
-                                null -> Unit
-                            }
-                            setChanged()
-                        },
-                        onSaveClick = {
-                            val baseName = safeFileName(resolveFileName(context, activeUri))
-                                .removeSuffix(".pdf")
-                                .ifBlank { "document" }
-                            saveLauncher.launch("Edited_${baseName}.pdf")
-                        },
-                        onShareClick = { uri ->
-                            if (hasUnsavedChanges) {
-                                errorMessage = "Save your changes before sharing the PDF."
-                            } else {
-                                try {
-                                    sharePdf(context, uri)
-                                } catch (e: Exception) {
-                                    errorMessage = e.message ?: "Could not share PDF"
-                                }
-                            }
-                        },
-                        onBackClick = ::requestBack,
-                        onEditorAction = { message -> errorMessage = message }
-                    )
+                            },
+                            onBackClick = ::requestBack
+                        )
+                    }
                 } else {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         if (isBusy) CircularProgressIndicator() else Text("No PDF is currently open")
@@ -1770,7 +1782,6 @@ private fun NavTabItem(
     }
 }
 
-
 @Composable
 private fun EditorScreen(
     renderer: PdfRenderer,
@@ -1798,769 +1809,468 @@ private fun EditorScreen(
     onUndo: () -> Unit,
     onSaveClick: () -> Unit,
     onShareClick: (Uri) -> Unit,
-    onBackClick: () -> Unit,
-    onEditorAction: (String) -> Unit = {}
+    onBackClick: () -> Unit
 ) {
     val context = LocalContext.current
+    // Resolving a display name from a content:// Uri is a blocking ContentResolver
+    // query. Calling it directly inside the topBar composable re-ran it on every
+    // recomposition of EditorScreen (e.g. every stroke drawn), blocking the main
+    // thread each time. Resolve it once per pdfUri instead.
     val fileName = remember(pdfUri) { resolveFileName(context, pdfUri) }
-    val editorScope = rememberCoroutineScope()
-    val editorListState = androidx.compose.foundation.lazy.rememberLazyListState()
-
-    val editorBackground = Color(0xFF0B1326)
-    val editorSurface = Color(0xFF131B2E)
-    val editorSurfaceHigh = Color(0xFF222A3D)
-    val editorSurfaceHighest = Color(0xFF2D3449)
-    val editorPrimary = Color(0xFF2563EB)
-    val editorPrimaryLight = Color(0xFFB4C5FF)
-    val editorSecondary = Color(0xFF4EDEA3)
-    val editorAmber = Color(0xFFFFB95F)
-    val editorText = Color(0xFFDAE2FD)
-    val editorMuted = Color(0xFFC3C6D7)
-    val editorOutline = Color(0xFF8D90A0)
-
-    fun selectTool(tool: EditorMode) {
-        onModeChange(tool)
-    }
 
     Scaffold(
-        containerColor = editorBackground,
         topBar = {
-            Surface(
-                color = editorSurface.copy(alpha = 0.96f),
-                tonalElevation = 0.dp,
-                shadowElevation = 8.dp
-            ) {
+            EditorTopBar(
+                fileName = fileName,
+                currentPage = currentPage,
+                pageCount = pageCount,
+                onShareClick = { onShareClick(pdfUri) },
+                onSaveClick = onSaveClick,
+                onBackClick = onBackClick,
+                saveEnabled = !isBusy,
+                shareEnabled = !isBusy,
+                hasUnsavedChanges = hasUnsavedChanges
+            )
+        },
+        bottomBar = {
+            EditorBottomBar(
+                editorMode = editorMode,
+                currentColor = currentColor,
+                onModeChange = onModeChange,
+                onColorChange = onColorChange,
+                strokeWidth = strokeWidth,
+                onWidthChange = onWidthChange,
+                zoomLevel = zoomLevel,
+                onZoomChange = onZoomChange,
+                canUndo = hasUndoHistory,
+                onUndo = onUndo
+            )
+        }
+    ) { innerPadding ->
+        PdfViewerWithSwipe(
+            renderer = renderer,
+            currentPage = currentPage,
+            pageCount = pageCount,
+            zoomLevel = zoomLevel,
+            editorMode = editorMode,
+            currentColor = currentColor,
+            strokeWidth = strokeWidth,
+            strokes = pageStrokes[currentPage].orEmpty(),
+            texts = pageTexts[currentPage].orEmpty(),
+            rendererMutex = rendererMutex,
+            modifier = Modifier.padding(innerPadding),
+            onPageChange = onPageChange,
+            onStrokeAdded = { onStrokeAdded(currentPage, it) },
+            onTextAdded = { onTextAdded(currentPage, it) },
+            onEraseAt = { onEraseAt(currentPage, it) }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditorTopBar(
+    fileName: String,
+    currentPage: Int,
+    pageCount: Int,
+    onShareClick: () -> Unit,
+    onSaveClick: () -> Unit,
+    onBackClick: () -> Unit,
+    saveEnabled: Boolean,
+    shareEnabled: Boolean,
+    hasUnsavedChanges: Boolean
+) {
+    TopAppBar(
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.PictureAsPdf,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
                 Column {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .statusBarsPadding()
-                            .height(64.dp)
-                            .padding(horizontal = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = onBackClick,
-                            modifier = Modifier.size(44.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "Back",
-                                tint = editorText,
-                                modifier = Modifier.size(23.dp)
+                    Text(
+                        fileName,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    Text(
+                        if (hasUnsavedChanges) {
+                            "Page ${currentPage + 1} of $pageCount • Unsaved changes"
+                        } else {
+                            "Page ${currentPage + 1} of $pageCount"
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (hasUnsavedChanges) {
+                            MaterialTheme.colorScheme.tertiary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        maxLines = 1
+                    )
+                }
+            }
+        },
+        navigationIcon = {
+            IconButton(onClick = onBackClick) {
+                Icon(Icons.Default.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.onSurface)
+            }
+        },
+        actions = {
+            IconButton(onClick = onSaveClick, enabled = saveEnabled) {
+                Icon(Icons.Default.Save, contentDescription = "Save PDF", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            IconButton(onClick = onShareClick, enabled = shareEnabled) {
+                Icon(
+                    Icons.Default.Share,
+                    contentDescription = "Share PDF",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                        .padding(6.dp)
+                )
+            }
+            Spacer(Modifier.width(4.dp))
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+            actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    )
+}
+
+@Composable
+private fun EditorBottomBar(
+    editorMode: EditorMode,
+    currentColor: Color,
+    onModeChange: (EditorMode) -> Unit,
+    onColorChange: (Color) -> Unit,
+    strokeWidth: Float,
+    onWidthChange: (Float) -> Unit,
+    zoomLevel: Float,
+    onZoomChange: (Float) -> Unit,
+    canUndo: Boolean,
+    onUndo: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        if (editorMode == EditorMode.DRAW || editorMode == EditorMode.HIGHLIGHT || editorMode == EditorMode.TEXT) {
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                shadowElevation = 8.dp,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+            ) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        when (editorMode) {
+                            EditorMode.HIGHLIGHT -> "Highlighter Settings"
+                            EditorMode.DRAW -> "Pen Settings"
+                            else -> "Text Settings"
+                        },
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    val colors = if (editorMode == EditorMode.HIGHLIGHT) {
+                        listOf(
+                            Color.Yellow.copy(alpha = DEFAULT_HIGHLIGHT_ALPHA),
+                            Color.Green.copy(alpha = DEFAULT_HIGHLIGHT_ALPHA),
+                            Color.Cyan.copy(alpha = DEFAULT_HIGHLIGHT_ALPHA),
+                            Color.Magenta.copy(alpha = DEFAULT_HIGHLIGHT_ALPHA)
+                        )
+                    } else {
+                        listOf(Color.Red, Color.Blue, Color.Green, Color.Black, Color.Yellow)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        colors.forEach { color ->
+                            val selected = color == currentColor
+                            Box(
+                                modifier = Modifier
+                                    .size(30.dp)
+                                    .clip(CircleShape)
+                                    .background(color)
+                                    .then(
+                                        if (selected) {
+                                            Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                                        } else {
+                                            Modifier
+                                        }
+                                    )
+                                    .pointerInput(color) { detectTapGestures { onColorChange(color) } }
                             )
                         }
-
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                "Document Editor",
-                                color = editorText,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1
-                            )
-                            Text(
-                                fileName,
-                                color = editorMuted.copy(alpha = 0.8f),
-                                fontSize = 11.sp,
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                            )
-                        }
-
-                        IconButton(
-                            onClick = {
-                                onEditorAction("Flash controls are not connected to the current PDF engine.")
-                            },
-                            modifier = Modifier.size(42.dp)
-                        ) {
-                            Text(
-                                "⚡",
-                                color = editorMuted,
-                                fontSize = 19.sp,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-
-                        IconButton(
-                            onClick = { onShareClick(pdfUri) },
-                            enabled = !isBusy,
-                            modifier = Modifier.size(42.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Share,
-                                contentDescription = "Share PDF",
-                                tint = if (isBusy) editorOutline else editorText,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        Box(
+                    }
+                    if (editorMode != EditorMode.TEXT) {
+                        Row(
                             modifier = Modifier
-                                .padding(start = 2.dp)
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(editorPrimary),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                                .padding(3.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
-                            Text(
-                                "PDF",
-                                color = Color.White,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                            listOf(4f to "Fine", 12f to "Med", 28f to "Bold").forEach { (width, label) ->
+                                val selected = strokeWidth == width
+                                Surface(
+                                    onClick = { onWidthChange(width) },
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(
+                                        label,
+                                        modifier = Modifier.padding(vertical = 6.dp),
+                                        textAlign = TextAlign.Center,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
         }
-    ) { innerPadding ->
-        LazyColumn(
-            state = editorListState,
-            modifier = Modifier
-                .fillMaxSize()
-                .background(editorBackground)
-                .padding(innerPadding),
-            contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
-                top = 12.dp,
-                bottom = 28.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+
+        Surface(
+            shape = RoundedCornerShape(22.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shadowElevation = 10.dp,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
         ) {
-            item {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = editorSurface,
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 11.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                fileName,
-                                color = editorText,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                            )
-                            Spacer(Modifier.height(3.dp))
-                            Text(
-                                "${pageCount} pages • ${if (hasUnsavedChanges) "Unsaved changes" else "Ready to edit"}",
-                                color = editorMuted.copy(alpha = 0.78f),
-                                fontSize = 11.sp
-                            )
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (hasUnsavedChanges) editorAmber.copy(alpha = 0.12f)
-                            else editorSecondary.copy(alpha = 0.10f)
-                        ) {
-                            Text(
-                                if (hasUnsavedChanges) "CHANGES" else "READY",
-                                color = if (hasUnsavedChanges) editorAmber else editorSecondary,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
-                            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    EditorModeButton(Icons.Default.Visibility, "View", editorMode == EditorMode.VIEW) {
+                        onModeChange(EditorMode.VIEW)
+                    }
+                    EditorModeButton(Icons.Default.Edit, "Draw", editorMode == EditorMode.DRAW) {
+                        onModeChange(EditorMode.DRAW); onColorChange(Color.Red); onWidthChange(8f)
+                    }
+                    EditorModeButton(Icons.Default.Highlight, "Mark", editorMode == EditorMode.HIGHLIGHT) {
+                        onModeChange(EditorMode.HIGHLIGHT); onColorChange(Color.Yellow.copy(alpha = DEFAULT_HIGHLIGHT_ALPHA)); onWidthChange(28f)
+                    }
+                    EditorModeButton(Icons.Default.TextFields, "Text", editorMode == EditorMode.TEXT) {
+                        onModeChange(EditorMode.TEXT)
+                    }
+                    EditorModeButton(Icons.Default.Delete, "Erase", editorMode == EditorMode.ERASE) {
+                        onModeChange(EditorMode.ERASE)
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .height(28.dp)
+                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                )
+                IconButton(onClick = onUndo, enabled = canUndo) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Undo,
+                        contentDescription = "Undo",
+                        tint = if (canUndo) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outlineVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { onZoomChange(zoomLevel - 0.2f) }, enabled = zoomLevel > 1f, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Remove, contentDescription = "Zoom out", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                    }
+                    Text(
+                        "${(zoomLevel * 100).toInt()}%",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(horizontal = 2.dp)
+                    )
+                    IconButton(onClick = { onZoomChange(zoomLevel + 0.2f) }, enabled = zoomLevel < 3f, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Add, contentDescription = "Zoom in", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EditorModeButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .width(52.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            icon,
+            contentDescription = label,
+            tint = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(Modifier.height(3.dp))
+        Box(
+            modifier = Modifier
+                .size(4.dp)
+                .clip(CircleShape)
+                .background(if (isSelected) MaterialTheme.colorScheme.tertiary else Color.Transparent)
+        )
+    }
+}
+
+@Composable
+private fun PdfViewerWithSwipe(
+    renderer: PdfRenderer,
+    currentPage: Int,
+    pageCount: Int,
+    zoomLevel: Float,
+    editorMode: EditorMode,
+    currentColor: Color,
+    strokeWidth: Float,
+    strokes: List<PdfStroke>,
+    texts: List<PdfText>,
+    rendererMutex: Mutex,
+    modifier: Modifier = Modifier,
+    onPageChange: (Int) -> Unit,
+    onStrokeAdded: (PdfStroke) -> Unit,
+    onTextAdded: (PdfText) -> Unit,
+    onEraseAt: (Offset) -> Unit
+) {
+    val stripState = rememberLazyListState()
+    LaunchedEffect(currentPage) {
+        stripState.animateScrollToItem((currentPage - 1).coerceAtLeast(0))
+    }
+
+    Box(
+        modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainerLowest)
+            .pointerInput(editorMode, zoomLevel, currentPage, pageCount) {
+                if (editorMode == EditorMode.VIEW && zoomLevel == 1f) {
+                    detectHorizontalDragGestures { change, dragAmount ->
+                        change.consume()
+                        when {
+                            dragAmount < -80f && currentPage < pageCount - 1 -> onPageChange(currentPage + 1)
+                            dragAmount > 80f && currentPage > 0 -> onPageChange(currentPage - 1)
                         }
                     }
                 }
             }
-
-            item {
+    ) {
+        Column(Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = editorSurface.copy(alpha = 0.90f),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    shadowElevation = 4.dp,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .padding(horizontal = 12.dp),
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Default.Search,
-                            contentDescription = "Search",
-                            tint = editorOutline,
-                            modifier = Modifier.size(19.dp)
-                        )
-                        Spacer(Modifier.width(10.dp))
+                        IconButton(
+                            onClick = { onPageChange(currentPage - 1) },
+                            enabled = currentPage > 0,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous page", modifier = Modifier.size(20.dp))
+                        }
                         Text(
-                            "Search within PDF",
-                            color = editorMuted,
-                            fontSize = 13.sp,
-                            modifier = Modifier.weight(1f)
+                            "${currentPage + 1} / $pageCount",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = FontFamily.Monospace,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(horizontal = 6.dp)
                         )
-                        Surface(
-                            onClick = { onEditorAction("PDF text search is not connected yet.") },
-                            shape = RoundedCornerShape(8.dp),
-                            color = editorSurfaceHigh
+                        IconButton(
+                            onClick = { onPageChange(currentPage + 1) },
+                            enabled = currentPage < pageCount - 1,
+                            modifier = Modifier.size(32.dp)
                         ) {
-                            Text(
-                                "Search",
-                                color = editorPrimaryLight,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                            )
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next page", modifier = Modifier.size(20.dp))
                         }
                     }
                 }
             }
-
-            item {
-                Surface(
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                PdfPage(
+                    renderer = renderer,
+                    pageIndex = currentPage,
+                    zoomLevel = zoomLevel,
+                    editorMode = editorMode,
+                    currentColor = currentColor,
+                    strokeWidth = strokeWidth,
+                    strokes = strokes,
+                    texts = texts,
+                    rendererMutex = rendererMutex,
+                    onStrokeAdded = onStrokeAdded,
+                    onTextAdded = onTextAdded,
+                    onEraseAt = onEraseAt
+                )
+            }
+            if (pageCount > 1) {
+                LazyRow(
+                    state = stripState,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp),
-                    color = Color(0xFF060E20),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
-                ) {
-                    Column {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                "DOCUMENT VIEW",
-                                color = editorOutline,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.1.sp
-                            )
-                            Text(
-                                "A4 • PAGE ${"%02d".format(currentPage + 1)} / ${"%02d".format(pageCount)}",
-                                color = editorMuted,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(440.dp)
-                                .background(Color(0xFF090D16)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            PdfPage(
-                                renderer = renderer,
-                                pageIndex = currentPage,
-                                zoomLevel = zoomLevel,
-                                editorMode = editorMode,
-                                currentColor = currentColor,
-                                strokeWidth = strokeWidth,
-                                strokes = pageStrokes[currentPage].orEmpty(),
-                                texts = pageTexts[currentPage].orEmpty(),
-                                rendererMutex = rendererMutex,
-                                onStrokeAdded = { onStrokeAdded(currentPage, it) },
-                                onTextAdded = { onTextAdded(currentPage, it) },
-                                onEraseAt = { onEraseAt(currentPage, it) }
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Surface(
-                                shape = RoundedCornerShape(50),
-                                color = editorSurfaceHigh
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    IconButton(
-                                        onClick = { onPageChange(currentPage - 1) },
-                                        enabled = currentPage > 0,
-                                        modifier = Modifier.size(30.dp)
-                                    ) {
-                                        Text(
-                                            "‹",
-                                            color = if (currentPage > 0) editorText else editorOutline,
-                                            fontSize = 24.sp,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
-                                    Text(
-                                        "Page ${currentPage + 1} of $pageCount",
-                                        color = editorText,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        modifier = Modifier.padding(horizontal = 5.dp)
-                                    )
-                                    IconButton(
-                                        onClick = { onPageChange(currentPage + 1) },
-                                        enabled = currentPage < pageCount - 1,
-                                        modifier = Modifier.size(30.dp)
-                                    ) {
-                                        Text(
-                                            "›",
-                                            color = if (currentPage < pageCount - 1) editorText else editorOutline,
-                                            fontSize = 24.sp,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
-                                }
-                            }
-
-                            Surface(
-                                shape = RoundedCornerShape(50),
-                                color = editorSurfaceHigh
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    IconButton(
-                                        onClick = { onZoomChange((zoomLevel - 0.15f).coerceAtLeast(1f)) },
-                                        enabled = zoomLevel > 1f,
-                                        modifier = Modifier.size(30.dp)
-                                    ) {
-                                        Text(
-                                            "−",
-                                            color = if (zoomLevel > 1f) editorText else editorOutline,
-                                            fontSize = 18.sp,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
-                                    Text(
-                                        "${(zoomLevel * 100).toInt()}%",
-                                        color = editorPrimaryLight,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 6.dp)
-                                    )
-                                    IconButton(
-                                        onClick = { onZoomChange((zoomLevel + 0.15f).coerceAtMost(3f)) },
-                                        enabled = zoomLevel < 3f,
-                                        modifier = Modifier.size(30.dp)
-                                    ) {
-                                        Text(
-                                            "+",
-                                            color = if (zoomLevel < 3f) editorText else editorOutline,
-                                            fontSize = 18.sp,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            item {
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = editorSurface,
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.07f))
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                "ANNOTATION STUDIO",
-                                color = editorOutline,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.1.sp
-                            )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(editorSecondary)
-                                )
-                                Spacer(Modifier.width(5.dp))
-                                Text(
-                                    "Manual Save",
-                                    color = editorSecondary,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            EditorToolButton(
-                                label = "Select",
-                                icon = Icons.Default.Image,
-                                selected = editorMode == EditorMode.VIEW,
-                                primary = editorPrimary,
-                                textColor = editorText,
-                                modifier = Modifier.weight(1f),
-                                onClick = { selectTool(EditorMode.VIEW) }
-                            )
-                            EditorToolButton(
-                                label = "Mark",
-                                icon = Icons.Default.Edit,
-                                selected = editorMode == EditorMode.HIGHLIGHT,
-                                primary = editorPrimary,
-                                textColor = editorText,
-                                modifier = Modifier.weight(1f),
-                                onClick = {
-                                    onModeChange(EditorMode.HIGHLIGHT)
-                                    onColorChange(Color.Yellow.copy(alpha = DEFAULT_HIGHLIGHT_ALPHA))
-                                    onWidthChange(28f)
-                                }
-                            )
-                            EditorToolButton(
-                                label = "Sign",
-                                icon = Icons.Default.Edit,
-                                selected = false,
-                                primary = editorPrimary,
-                                textColor = editorText,
-                                modifier = Modifier.weight(1f),
-                                onClick = {
-                                    onModeChange(EditorMode.TEXT)
-                                    onEditorAction("Sign mode currently uses the existing text annotation tool.")
-                                }
-                            )
-                            EditorToolButton(
-                                label = "Stamp",
-                                icon = Icons.Default.Star,
-                                selected = false,
-                                primary = editorPrimary,
-                                textColor = editorText,
-                                modifier = Modifier.weight(1f),
-                                onClick = {
-                                    onEditorAction("Stamp support is not connected to the current PDF engine.")
-                                }
-                            )
-                            EditorToolButton(
-                                label = "Pages",
-                                icon = Icons.Default.GridView,
-                                selected = false,
-                                primary = editorPrimary,
-                                textColor = editorText,
-                                modifier = Modifier.weight(1f),
-                                onClick = {
-                                    editorScope.launch {
-                                        editorListState.animateScrollToItem(4)
-                                    }
-                                }
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 2.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Ink", color = editorMuted, fontSize = 10.sp)
-                                val palette = listOf(
-                                    Color(0xFFFFB95F),
-                                    editorSecondary,
-                                    Color(0xFFB4C5FF)
-                                )
-                                palette.forEach { swatch ->
-                                    Surface(
-                                        onClick = {
-                                            onColorChange(
-                                                if (editorMode == EditorMode.HIGHLIGHT) swatch.copy(alpha = DEFAULT_HIGHLIGHT_ALPHA)
-                                                else swatch
-                                            )
-                                        },
-                                        shape = CircleShape,
-                                        color = swatch,
-                                        modifier = Modifier.size(23.dp),
-                                        border = if (currentColor == swatch || currentColor == swatch.copy(alpha = DEFAULT_HIGHLIGHT_ALPHA))
-                                            BorderStroke(2.dp, editorPrimary)
-                                        else null
-                                    ) {}
-                                }
-                            }
-
-                            TextButton(
-                                onClick = { onUndo() },
-                                enabled = hasUndoHistory
-                            ) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.Undo,
-                                    contentDescription = "Undo",
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(Modifier.width(4.dp))
-                                Text("Undo", fontSize = 11.sp)
-                            }
-                        }
-
-                        if (
-                            editorMode == EditorMode.DRAW ||
-                            editorMode == EditorMode.HIGHLIGHT ||
-                            editorMode == EditorMode.TEXT ||
-                            editorMode == EditorMode.ERASE
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(editorSurfaceHigh)
-                                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    when (editorMode) {
-                                        EditorMode.DRAW -> "Drawing mode"
-                                        EditorMode.HIGHLIGHT -> "Highlight mode"
-                                        EditorMode.TEXT -> "Text mode"
-                                        EditorMode.ERASE -> "Erase mode"
-                                        else -> ""
-                                    },
-                                    color = editorMuted,
-                                    fontSize = 10.sp
-                                )
-
-                                if (editorMode != EditorMode.TEXT) {
-                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        listOf(4f to "S", 12f to "M", 28f to "L").forEach { (width, label) ->
-                                            FilterChip(
-                                                selected = strokeWidth == width,
-                                                onClick = { onWidthChange(width) },
-                                                label = { Text(label, fontSize = 9.sp) }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            item {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    color = editorSurface.copy(alpha = 0.86f)
-                ) {
-                    Column {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 10.dp, vertical = 9.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    Icons.Default.GridView,
-                                    contentDescription = null,
-                                    tint = editorMuted,
-                                    modifier = Modifier.size(17.dp)
-                                )
-                                Spacer(Modifier.width(6.dp))
-                                Text(
-                                    "Reorder Pages",
-                                    color = editorMuted,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                            Text(
-                                "Tap a page to edit",
-                                color = editorOutline,
-                                fontSize = 9.sp
-                            )
-                        }
-
-                        LazyRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            items(
-                                count = pageCount,
-                                key = { index -> "editor-thumb-$index" }
-                            ) { index ->
-                                EditorPageThumbnail(
-                                    renderer = renderer,
-                                    pageIndex = index,
-                                    selected = index == currentPage,
-                                    rendererMutex = rendererMutex,
-                                    onClick = { onPageChange(index) }
-                                )
-                            }
-
-                            item {
-                                Surface(
-                                    onClick = {
-                                        onEditorAction("Insert page is not connected to the current PDF engine.")
-                                    },
-                                    modifier = Modifier.size(width = 64.dp, height = 88.dp),
-                                    shape = RoundedCornerShape(9.dp),
-                                    color = editorSurfaceHigh,
-                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
-                                ) {
-                                    Column(
-                                        modifier = Modifier.fillMaxSize(),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Add,
-                                            contentDescription = "Add page",
-                                            tint = editorMuted,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Spacer(Modifier.height(5.dp))
-                                        Text(
-                                            "+ Page",
-                                            color = editorMuted,
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Medium
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    EditorMetaCard(
-                        title = "PAGE",
-                        value = "${"%02d".format(currentPage + 1)} / ${"%02d".format(pageCount)}",
-                        tint = editorPrimaryLight,
-                        modifier = Modifier.weight(1f)
-                    )
-                    EditorMetaCard(
-                        title = "EDIT STATE",
-                        value = if (hasUnsavedChanges) "UNSAVED" else "SAVED",
-                        tint = if (hasUnsavedChanges) editorAmber else editorSecondary,
-                        modifier = Modifier.weight(1f)
-                    )
-                    EditorMetaCard(
-                        title = "PDF ENGINE",
-                        value = "ANDROID",
-                        tint = editorMuted,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-
-            item {
-                Surface(
-                    shape = RoundedCornerShape(15.dp),
-                    color = editorSurface,
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.07f))
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                    items(pageCount) { index ->
+                        val selected = index == currentPage
+                        Box(
+                            modifier = Modifier
+                                .size(width = 40.dp, height = 52.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                                .border(
+                                    width = if (selected) 2.dp else 1.dp,
+                                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .clickable { onPageChange(index) },
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                "EXPORT & EXECUTION",
-                                color = editorOutline,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.0.sp
-                            )
-                            Text(
-                                if (hasUnsavedChanges) "Changes pending" else "Document ready",
-                                color = if (hasUnsavedChanges) editorAmber else editorSecondary,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-
-                        Button(
-                            onClick = onSaveClick,
-                            enabled = !isBusy,
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = editorPrimary)
-                        ) {
-                            Icon(
-                                Icons.Default.Save,
-                                contentDescription = null,
-                                modifier = Modifier.size(19.dp)
-                            )
-                            Spacer(Modifier.width(7.dp))
-                            Text(
-                                "Save PDF",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedTextButton(
-                                label = "Export Text",
-                                icon = Icons.Default.Description,
-                                onClick = { onEditorAction("Text export is not connected to the current PDF engine.") },
-                                modifier = Modifier.weight(1f),
-                                tint = editorMuted
-                            )
-                            OutlinedTextButton(
-                                label = "E-Sign",
-                                icon = Icons.Default.Edit,
-                                onClick = { onEditorAction("E-signature is not connected to the current PDF engine.") },
-                                modifier = Modifier.weight(1f),
-                                tint = editorMuted
-                            )
-                            OutlinedTextButton(
-                                label = "Share",
-                                icon = Icons.Default.Share,
-                                onClick = { onShareClick(pdfUri) },
-                                modifier = Modifier.weight(1f),
-                                tint = editorMuted,
-                                enabled = !isBusy
+                                "${index + 1}",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -2683,7 +2393,7 @@ private fun PdfPage(
     }
 
     BoxWithConstraints(
-        modifier = Modifier.fillMaxSize().background(Color(0xFFE5E7EB)).graphicsLayer(scaleX = zoomLevel, scaleY = zoomLevel),
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainerLowest).graphicsLayer(scaleX = zoomLevel, scaleY = zoomLevel),
         contentAlignment = Alignment.Center
     ) {
         val info = renderInfo
@@ -2820,260 +2530,6 @@ private fun PdfPage(
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-
-@Composable
-private fun EditorToolButton(
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    selected: Boolean,
-    primary: Color,
-    textColor: Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        onClick = onClick,
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        color = if (selected) primary else Color(0xFF222A3D)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 10.dp, horizontal = 4.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                icon,
-                contentDescription = label,
-                tint = if (selected) Color.White else textColor.copy(alpha = 0.82f),
-                modifier = Modifier.size(19.dp)
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                label,
-                color = if (selected) Color.White else textColor.copy(alpha = 0.80f),
-                fontSize = 9.sp,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
-            )
-        }
-    }
-}
-
-@Composable
-private fun EditorMetaCard(
-    title: String,
-    value: String,
-    tint: Color,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(11.dp),
-        color = Color(0xFF131B2E),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp)
-        ) {
-            Text(
-                title,
-                color = Color(0xFF8D90A0),
-                fontSize = 8.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 0.8.sp
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                value,
-                color = tint,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-@Composable
-private fun OutlinedTextButton(
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    tint: Color = Color.White,
-    enabled: Boolean = true
-) {
-    Surface(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = modifier.height(44.dp),
-        shape = RoundedCornerShape(10.dp),
-        color = Color.Transparent,
-        border = BorderStroke(
-            1.dp,
-            if (enabled) Color.White.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.05f)
-        )
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 7.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                icon,
-                contentDescription = label,
-                tint = if (enabled) tint else tint.copy(alpha = 0.35f),
-                modifier = Modifier.size(15.dp)
-            )
-            Spacer(Modifier.width(4.dp))
-            Text(
-                label,
-                color = if (enabled) tint else tint.copy(alpha = 0.35f),
-                fontSize = 9.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1
-            )
-        }
-    }
-}
-
-@Composable
-private fun EditorPageThumbnail(
-    renderer: PdfRenderer,
-    pageIndex: Int,
-    selected: Boolean,
-    rendererMutex: Mutex,
-    onClick: () -> Unit
-) {
-    var thumbnail by remember(pageIndex, renderer) { mutableStateOf<Bitmap?>(null) }
-    var failed by remember(pageIndex, renderer) { mutableStateOf(false) }
-
-    LaunchedEffect(pageIndex, renderer) {
-        failed = false
-        thumbnail?.let {
-            if (!it.isRecycled) it.recycle()
-        }
-        thumbnail = null
-
-        try {
-            val result = rendererMutex.withLock {
-                withContext(Dispatchers.IO) {
-                    renderer.openPage(pageIndex).use { page ->
-                        val sourceWidth = page.width.coerceAtLeast(1)
-                        val sourceHeight = page.height.coerceAtLeast(1)
-                        val thumbWidth = 110
-                        val scale = thumbWidth.toFloat() / sourceWidth.toFloat()
-                        val thumbHeight = (sourceHeight * scale).toInt().coerceAtLeast(1)
-                        val bitmap = createBitmap(
-                            thumbWidth,
-                            thumbHeight,
-                            Bitmap.Config.ARGB_8888
-                        )
-                        page.render(
-                            bitmap,
-                            null,
-                            null,
-                            PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY
-                        )
-                        bitmap.prepareToDraw()
-                        bitmap
-                    }
-                }
-            }
-
-            if (isActive) {
-                thumbnail = result
-            } else if (!result.isRecycled) {
-                result.recycle()
-            }
-        } catch (_: Exception) {
-            failed = true
-        }
-    }
-
-    DisposableEffect(thumbnail) {
-        onDispose {
-            thumbnail?.let {
-                if (!it.isRecycled) it.recycle()
-            }
-        }
-    }
-
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.size(width = 64.dp, height = 88.dp),
-        shape = RoundedCornerShape(9.dp),
-        color = if (selected) Color(0xFFDAE2FD) else Color(0xFF222A3D),
-        border = if (selected) BorderStroke(2.dp, Color(0xFF2563EB))
-        else BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize().padding(5.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            when {
-                thumbnail != null -> {
-                    Image(
-                        bitmap = thumbnail!!.asImageBitmap(),
-                        contentDescription = "Page ${pageIndex + 1}",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Fit
-                    )
-                }
-                failed -> {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Default.Description,
-                            contentDescription = null,
-                            tint = if (selected) Color(0xFF334155) else Color(0xFF94A3B8),
-                            modifier = Modifier.size(17.dp)
-                        )
-                        Spacer(Modifier.height(3.dp))
-                        Text(
-                            "P.${pageIndex + 1}",
-                            color = if (selected) Color(0xFF334155) else Color(0xFF94A3B8),
-                            fontSize = 8.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-                else -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(15.dp),
-                        strokeWidth = 2.dp
-                    )
-                }
-            }
-
-            Surface(
-                shape = RoundedCornerShape(5.dp),
-                color = if (selected) Color.White.copy(alpha = 0.82f)
-                else Color(0xFF0B1326).copy(alpha = 0.80f)
-            ) {
-                Text(
-                    "P.${pageIndex + 1}",
-                    color = if (selected) Color(0xFF1E293B) else Color(0xFFDAE2FD),
-                    fontSize = 7.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                )
-            }
-
-            if (selected) {
-                Icon(
-                    Icons.Default.Star,
-                    contentDescription = null,
-                    tint = Color(0xFF10B981),
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .size(12.dp)
-                )
             }
         }
     }

@@ -11,10 +11,36 @@ val PurpleGrey40 = Color(0xFF625B71)
 val Pink40 = Color(0xFF7D5260)
 
 val PdfPrimary = Color(0xFF6366F1)
-val PdfPrimaryDark = Color(0xFF8B5CF6)
-val PdfSurfaceDark = Color(0xFF1F2937)
-val PdfSurfaceVariantDark = Color(0xFF374151)
-val PdfOnSurfaceDark = Color(0xFFF3F4F6)
+
+// Dark theme palette — Stitch "Precision Mobile Document Architecture" design,
+// used for the PDF editor screen (always dark) and for the rest of the app
+// when the user turns on dark mode in Settings. The accent color reuses the
+// app's existing indigo brand (PdfPrimary) rather than the design's own blue,
+// so the editor stays visually consistent with the light Home dashboard.
+val EditorDarkBackground = Color(0xFF0B1326)
+val EditorDarkSurfaceDim = Color(0xFF0B1326)
+val EditorDarkSurfaceBright = Color(0xFF31394D)
+val EditorDarkSurfaceContainerLowest = Color(0xFF060E20)
+val EditorDarkSurfaceContainerLow = Color(0xFF131B2E)
+val EditorDarkSurfaceContainer = Color(0xFF171F33)
+val EditorDarkSurfaceContainerHigh = Color(0xFF222A3D)
+val EditorDarkSurfaceContainerHighest = Color(0xFF2D3449)
+val EditorDarkOnSurface = Color(0xFFDAE2FD)
+val EditorDarkOnSurfaceVariant = Color(0xFFC3C6D7)
+val EditorDarkOutline = Color(0xFF8D90A0)
+val EditorDarkOutlineVariant = Color(0xFF434655)
+val EditorDarkOnPrimaryContainer = Color(0xFFEEEFFF)
+val EditorDarkSecondary = Color(0xFF4EDEA3)
+val EditorDarkOnSecondary = Color(0xFF003824)
+val EditorDarkSecondaryContainer = Color(0xFF00A572)
+val EditorDarkOnSecondaryContainer = Color(0xFF00311F)
+val EditorDarkTertiary = Color(0xFFFFB95F)
+val EditorDarkOnTertiary = Color(0xFF472A00)
+val EditorDarkTertiaryContainer = Color(0xFF996100)
+val EditorDarkError = Color(0xFFFFB4AB)
+val EditorDarkOnError = Color(0xFF690005)
+val EditorDarkErrorContainer = Color(0xFF93000A)
+val EditorDarkOnErrorContainer = Color(0xFFFFDAD6)
 
 // Design tokens for the "PDF Studio" home dashboard (Stitch design import)
 val StudioIndigo50 = Color(0xFFEEF2FF)
