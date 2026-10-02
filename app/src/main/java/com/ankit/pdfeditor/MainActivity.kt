@@ -145,6 +145,7 @@ import androidx.core.content.FileProvider
 import androidx.core.content.edit
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
+import com.ankit.pdfeditor.model.*
 import com.ankit.pdfeditor.ui.theme.PDFEdittorAppTheme
 import com.ankit.pdfeditor.ui.theme.StudioAmber400
 import com.ankit.pdfeditor.ui.theme.StudioBlue50
@@ -204,42 +205,12 @@ private const val DEFAULT_HIGHLIGHT_ALPHA = 0.7f
 // import just for a single accent color.
 private val PdfPrimary = Color(0xFF6366F1)
 
-private enum class EditorMode { VIEW, DRAW, HIGHLIGHT, TEXT, ERASE }
-private enum class AppScreen { HOME, FILES, TOOLS, EDITOR, SETTINGS }
-private enum class SortOption { DATE, NAME }
-
-private data class PdfStroke(
-    val id: String = UUID.randomUUID().toString(),
-    val points: List<Offset>,
-    val color: Color = Color.Red,
-    val widthFraction: Float = 0.008f
-)
-
-private data class PdfText(
-    val id: String = UUID.randomUUID().toString(),
-    val text: String,
-    val position: Offset,
-    val color: Color = Color.Black,
-    val sizeFraction: Float = 0.025f
-)
-
-private data class RecentFileItem(
-    val uri: String,
-    val fileName: String,
-    val openedAt: String,
-    val fileSizeBytes: Long = -1L,
-    val timestamp: Long = System.currentTimeMillis(),
-    val isFavorite: Boolean = false
-)
-
 private sealed interface AnnotationAction {
     data class StrokeAdded(val page: Int, val stroke: PdfStroke) : AnnotationAction
     data class StrokeRemoved(val page: Int, val stroke: PdfStroke) : AnnotationAction
     data class TextAdded(val page: Int, val text: PdfText) : AnnotationAction
     data class TextRemoved(val page: Int, val text: PdfText) : AnnotationAction
 }
-
-private data class PageRenderInfo(val bitmap: Bitmap)
 
 private fun appDocumentsDir(context: Context): File =
     File(context.filesDir, "pdf_documents").apply { mkdirs() }
