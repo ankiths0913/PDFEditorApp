@@ -5,18 +5,4 @@
         name="pdf_documents"
         path="pdf_documents/" />
 
-    <!-- Share files from cache directory -->
-    <cache-path
-        name="cache"
-        path="/" />
-
-    <!-- Share files from external files directory -->
-    <external-files-path
-        name="external_files"
-        path="/" />
-
-    <!-- Share all external storage (for Android 11+ with MANAGE_EXTERNAL_STORAGE) -->
-    <external-path
-        name="external_storage"
-        path="/" />
 </paths>

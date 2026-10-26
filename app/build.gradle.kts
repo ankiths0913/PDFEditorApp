@@ -19,7 +19,11 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 
@@ -30,6 +34,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -54,6 +59,8 @@ dependencies {
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
+    implementation("com.tom-roush:pdfbox-android:2.0.27.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

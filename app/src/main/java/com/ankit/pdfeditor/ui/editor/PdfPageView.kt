@@ -38,8 +38,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-private const val MAX_DISPLAY_RENDER_DIMENSION = 1600
-
 @Composable
 internal fun PdfViewerWithSwipe(
     renderer: PdfRenderer,

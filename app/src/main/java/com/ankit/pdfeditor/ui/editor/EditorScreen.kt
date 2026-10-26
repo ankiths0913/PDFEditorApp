@@ -25,7 +25,6 @@ import com.ankit.pdfeditor.model.*
 import com.ankit.pdfeditor.util.*
 import kotlinx.coroutines.sync.Mutex
 
-private const val DEFAULT_HIGHLIGHT_ALPHA = 0.7f
 @Composable
 internal fun EditorScreen(
     renderer: PdfRenderer,

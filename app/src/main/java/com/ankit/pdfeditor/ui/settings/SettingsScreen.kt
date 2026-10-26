@@ -1,5 +1,6 @@
 package com.ankit.pdfeditor.ui.settings
 
+import com.ankit.pdfeditor.BuildConfig
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -64,11 +65,11 @@ internal fun SettingsScreen(
                     }
                 }
             }
-            item { SettingItem("Version", "1.2") }
+            item { SettingItem("Version", BuildConfig.VERSION_NAME) }
             item { SettingItem("About", "PDF Studio") }
             item {
                 Text(
-                    "Edited PDFs are exported as flattened copies so annotations remain visible after reopening or sharing.",
+                    "Edited PDFs preserve the original document content while adding annotations.",
                     style = MaterialTheme.typography.bodySmall
                 )
             }

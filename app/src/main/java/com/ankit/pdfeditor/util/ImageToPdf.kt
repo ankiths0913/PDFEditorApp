@@ -3,6 +3,9 @@ package com.ankit.pdfeditor.util
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
 import android.net.Uri
 import androidx.core.graphics.scale
@@ -52,15 +55,31 @@ internal fun convertImageToPdfOnDevice(context: Context, imageUri: Uri): File? {
         )
         val pdfDocument = PdfDocument()
         try {
+            val pageWidth = 612
+            val pageHeight = 792
             val pageInfo = PdfDocument.PageInfo.Builder(
-                finalBitmap.width,
-                finalBitmap.height,
+                pageWidth,
+                pageHeight,
                 1
             ).create()
             val page = pdfDocument.startPage(pageInfo)
-            page.canvas.drawBitmap(finalBitmap, 0f, 0f, null)
+            page.canvas.drawColor(Color.WHITE)
+            val scale = minOf(
+                pageWidth.toFloat() / finalBitmap.width,
+                pageHeight.toFloat() / finalBitmap.height
+            )
+            val drawWidth = finalBitmap.width * scale
+            val drawHeight = finalBitmap.height * scale
+            val left = (pageWidth - drawWidth) / 2f
+            val top = (pageHeight - drawHeight) / 2f
+            page.canvas.drawBitmap(
+                finalBitmap,
+                null,
+                android.graphics.RectF(left, top, left + drawWidth, top + drawHeight),
+                Paint(Paint.ANTI_ALIAS_FLAG).apply { isFilterBitmap = true }
+            )
             pdfDocument.finishPage(page)
-            File(outputFile.parentFile, outputFile.name).outputStream().use { pdfDocument.writeTo(it) }
+            outputFile.outputStream().use { pdfDocument.writeTo(it) }
         } finally {
             pdfDocument.close()
             if (!finalBitmap.isRecycled) finalBitmap.recycle()

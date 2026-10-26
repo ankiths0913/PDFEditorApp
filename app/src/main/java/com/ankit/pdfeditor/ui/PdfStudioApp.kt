@@ -10,7 +10,6 @@ import android.graphics.BitmapFactory
 import android.graphics.Paint
 import android.graphics.Path as AndroidPath
 import android.graphics.Typeface
-import android.graphics.pdf.PdfDocument
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.Bundle
@@ -145,13 +144,14 @@ import androidx.core.content.FileProvider
 import androidx.core.content.edit
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ankit.pdfeditor.model.*
 import com.ankit.pdfeditor.ui.files.FilesScreen
 import com.ankit.pdfeditor.ui.home.HomeScreen
 import com.ankit.pdfeditor.ui.editor.EditorScreen
 import com.ankit.pdfeditor.ui.nav.BottomNavBar
 import com.ankit.pdfeditor.ui.settings.SettingsScreen
-import com.ankit.pdfeditor.ui.theme.PDFEdittorAppTheme
+import com.ankit.pdfeditor.ui.theme.PDFEditorAppTheme
 import com.ankit.pdfeditor.util.*
 import com.ankit.pdfeditor.ui.tools.ToolsScreen
 import com.ankit.pdfeditor.ui.theme.StudioAmber400
@@ -187,6 +187,10 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
+import com.tom_roush.pdfbox.pdmodel.font.PDType1Font
+import com.tom_roush.pdfbox.util.Matrix
 import java.io.File
 import java.io.IOException
 import java.io.OutputStream
@@ -198,9 +202,6 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private const val DARK_THEME_KEY = "dark_theme"
 private const val MAX_UNDO_HISTORY = 50
-private const val MAX_DISPLAY_RENDER_DIMENSION = 1600
-private const val DEFAULT_HIGHLIGHT_ALPHA = 0.7f
-
 // Brand primary color used throughout the UI (matches the indigo accent used
 // by the theme module). Declared locally so this file doesn't need an extra
 // import just for a single accent color.
@@ -213,56 +214,72 @@ private sealed interface AnnotationAction {
     data class TextRemoved(val page: Int, val text: PdfText) : AnnotationAction
 }
 
-private suspend fun writeFlattenedPdf(
-    renderer: PdfRenderer,
+private suspend fun writeAnnotatedPdf(
+    context: Context,
+    sourceUri: Uri,
     strokesByPage: Map<Int, List<PdfStroke>>,
     textsByPage: Map<Int, List<PdfText>>,
     outputStream: OutputStream,
     rendererMutex: Mutex
 ) = withContext(Dispatchers.IO) {
     rendererMutex.withLock {
-        val pdfDocument = PdfDocument()
-        try {
-            for (pageIndex in 0 until renderer.pageCount) {
-                val page = renderer.openPage(pageIndex)
-                try {
-                    val sourceWidth = page.width
-                    val sourceHeight = page.height
-                    val scale = minOf(
-                        1f,
-                        MAX_EXPORT_RENDER_DIMENSION.toFloat() / maxOf(sourceWidth, sourceHeight)
-                    )
-                    val width = (sourceWidth * scale).toInt().coerceAtLeast(1)
-                    val height = (sourceHeight * scale).toInt().coerceAtLeast(1)
-                    var bitmap: Bitmap? = null
-                    try {
-                        bitmap = createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                        page.render(
-                            bitmap,
-                            null,
-                            null,
-                            PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY
-                        )
-                        bakeAnnotations(
-                            canvas = android.graphics.Canvas(bitmap),
-                            bitmap = bitmap,
-                            strokes = strokesByPage[pageIndex].orEmpty(),
-                            texts = textsByPage[pageIndex].orEmpty()
-                        )
-                        val pageInfo = PdfDocument.PageInfo.Builder(width, height, pageIndex + 1).create()
-                        val outputPage = pdfDocument.startPage(pageInfo)
-                        outputPage.canvas.drawBitmap(bitmap, 0f, 0f, null)
-                        pdfDocument.finishPage(outputPage)
-                    } finally {
-                        bitmap?.let { if (!it.isRecycled) it.recycle() }
+        val input = context.contentResolver.openInputStream(sourceUri)
+            ?: throw IOException("Unable to read the source PDF")
+        input.use { source ->
+            PDDocument.load(source).use { document ->
+                document.pages.forEachIndexed { pageIndex, page ->
+                    val pageWidth = page.mediaBox.width
+                    val pageHeight = page.mediaBox.height
+                    PDPageContentStream(
+                        document,
+                        page,
+                        PDPageContentStream.AppendMode.APPEND,
+                        true,
+                        true
+                    ).use { content ->
+                        strokesByPage[pageIndex].orEmpty().forEach { stroke ->
+                            if (stroke.points.isNotEmpty()) {
+                                val color = stroke.color.toAndroidColor()
+                                content.setStrokingColor(
+                                    android.graphics.Color.red(color),
+                                    android.graphics.Color.green(color),
+                                    android.graphics.Color.blue(color)
+                                )
+                                content.setLineWidth(stroke.widthFraction * minOf(pageWidth, pageHeight))
+                                val first = stroke.points.first()
+                                content.moveTo(first.x * pageWidth, (1f - first.y) * pageHeight)
+                                stroke.points.drop(1).forEach { point ->
+                                    content.lineTo(point.x * pageWidth, (1f - point.y) * pageHeight)
+                                }
+                                content.stroke()
+                            }
+                        }
+                        textsByPage[pageIndex].orEmpty().forEach { text ->
+                            val color = text.color.toAndroidColor()
+                            content.setNonStrokingColor(
+                                android.graphics.Color.red(color),
+                                android.graphics.Color.green(color),
+                                android.graphics.Color.blue(color)
+                            )
+                            content.beginText()
+                            content.setFont(PDType1Font.HELVETICA, text.sizeFraction * minOf(pageWidth, pageHeight))
+                            content.setTextMatrix(
+                                Matrix(
+                                    1f,
+                                    0f,
+                                    0f,
+                                    1f,
+                                    text.position.x * pageWidth,
+                                    (1f - text.position.y) * pageHeight
+                                )
+                            )
+                            content.showText(text.text)
+                            content.endText()
+                        }
                     }
-                } finally {
-                    page.close()
                 }
+                document.save(outputStream)
             }
-            pdfDocument.writeTo(outputStream)
-        } finally {
-            pdfDocument.close()
         }
     }
 }
@@ -270,9 +287,13 @@ private suspend fun writeFlattenedPdf(
 @Composable
 internal fun PdfStudioApp() {
     val context = LocalContext.current
+    val studioViewModel: StudioViewModel = viewModel()
     val scope = rememberCoroutineScope()
     val rendererMutex = remember { Mutex() }
     val prefs = remember { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) { cleanupGeneratedFiles(context) }
+    }
 
     var isDarkTheme by remember { mutableStateOf(prefs.getBoolean(DARK_THEME_KEY, false)) }
     var currentScreen by remember { mutableStateOf(AppScreen.HOME) }
@@ -291,13 +312,12 @@ internal fun PdfStudioApp() {
     var strokeWidth by remember { mutableFloatStateOf(8f) }
 
     var recentFiles by remember { mutableStateOf(loadRecentFiles(context)) }
-    val pageStrokes = remember { mutableStateMapOf<Int, List<PdfStroke>>() }
-    val pageTexts = remember { mutableStateMapOf<Int, List<PdfText>>() }
+    val pageStrokes = studioViewModel.pageStrokes
+    val pageTexts = studioViewModel.pageTexts
     val annotationHistory = remember { mutableStateListOf<AnnotationAction>() }
 
     fun clearAnnotations() {
-        pageStrokes.clear()
-        pageTexts.clear()
+        studioViewModel.clearAnnotations()
         annotationHistory.clear()
         hasUnsavedChanges = false
     }
@@ -523,6 +543,7 @@ internal fun PdfStudioApp() {
     ) { uri: Uri? ->
         uri ?: return@rememberLauncherForActivityResult
         val activeRenderer = renderer ?: return@rememberLauncherForActivityResult
+        val activeUri = pdfUri ?: return@rememberLauncherForActivityResult
         val strokesSnapshot = pageStrokes.mapValues { it.value.toList() }
         val textsSnapshot = pageTexts.mapValues { it.value.toList() }
         scope.launch {
@@ -532,8 +553,9 @@ internal fun PdfStudioApp() {
                 val output = context.contentResolver.openOutputStream(uri)
                     ?: throw IOException("Unable to create the destination PDF")
                 output.use {
-                    writeFlattenedPdf(
-                        renderer = activeRenderer,
+                    writeAnnotatedPdf(
+                        context = context,
+                        sourceUri = activeUri,
                         strokesByPage = strokesSnapshot,
                         textsByPage = textsSnapshot,
                         outputStream = it,
@@ -582,7 +604,7 @@ internal fun PdfStudioApp() {
         }
     }
 
-    PDFEdittorAppTheme(darkTheme = isDarkTheme) {
+    PDFEditorAppTheme(darkTheme = isDarkTheme) {
         val onOpenPdf: () -> Unit = { filePicker.launch(arrayOf("application/pdf")) }
         val onPhotoClick: () -> Unit = {
             photoPicker.launch(
@@ -639,7 +661,7 @@ internal fun PdfStudioApp() {
                     // The editor is always dark, independent of the app-wide theme
                     // toggle in Settings — an immersive dark canvas is the intended
                     // design for annotating, similar to most PDF/photo editors.
-                    PDFEdittorAppTheme(darkTheme = true) {
+                    PDFEditorAppTheme(darkTheme = true) {
                         EditorScreen(
                             renderer = activeRenderer,
                             pdfUri = activeUri,
@@ -662,11 +684,13 @@ internal fun PdfStudioApp() {
                             onWidthChange = { strokeWidth = it },
                             onStrokeAdded = { pageIdx, stroke ->
                                 pageStrokes[pageIdx] = pageStrokes[pageIdx].orEmpty() + stroke
+                                studioViewModel.persistAnnotations()
                                 pushHistory(AnnotationAction.StrokeAdded(pageIdx, stroke))
                                 setChanged()
                             },
                             onTextAdded = { pageIdx, text ->
                                 pageTexts[pageIdx] = pageTexts[pageIdx].orEmpty() + text
+                                studioViewModel.persistAnnotations()
                                 pushHistory(AnnotationAction.TextAdded(pageIdx, text))
                                 setChanged()
                             },
@@ -681,11 +705,13 @@ internal fun PdfStudioApp() {
                                 when {
                                     nearestStroke != null && nearestStrokeDistance <= 0.045f -> {
                                         pageStrokes[pageIdx] = strokes.filterNot { it.id == nearestStroke.id }
+                                        studioViewModel.persistAnnotations()
                                         pushHistory(AnnotationAction.StrokeRemoved(pageIdx, nearestStroke))
                                         setChanged()
                                     }
                                     nearestText != null && nearestTextDistance <= 0.09f -> {
                                         pageTexts[pageIdx] = texts.filterNot { it.id == nearestText.id }
+                                        studioViewModel.persistAnnotations()
                                         pushHistory(AnnotationAction.TextRemoved(pageIdx, nearestText))
                                         setChanged()
                                     }
@@ -709,6 +735,7 @@ internal fun PdfStudioApp() {
                                     }
                                     null -> Unit
                                 }
+                                studioViewModel.persistAnnotations()
                                 setChanged()
                             },
                             onSaveClick = {

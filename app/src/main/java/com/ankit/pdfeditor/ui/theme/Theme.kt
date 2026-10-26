@@ -51,7 +51,7 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 @Composable
-fun PDFEdittorAppTheme(
+fun PDFEditorAppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
