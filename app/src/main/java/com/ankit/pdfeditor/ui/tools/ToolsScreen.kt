@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material3.Icon
@@ -36,6 +37,7 @@ internal fun ToolsScreen() {
             modifier = Modifier
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surface)
+                .statusBarsPadding()
                 .padding(horizontal = 20.dp, vertical = 18.dp)
         ) {
             Text("Tools", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)

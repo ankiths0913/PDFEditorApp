@@ -1,8 +1,6 @@
 package com.ankit.pdfeditor.ui.nav
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -44,42 +42,55 @@ internal fun BottomNavBar(
     onTabSelected: (AppScreen) -> Unit,
     onScanClick: () -> Unit
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 8.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 8.dp
         ) {
-            NavTabItem(Icons.Default.GridView, "Home", currentScreen == AppScreen.HOME) { onTabSelected(AppScreen.HOME) }
-            NavTabItem(Icons.Default.Description, "Files", currentScreen == AppScreen.FILES) { onTabSelected(AppScreen.FILES) }
-            Surface(
-                onClick = onScanClick,
-                shape = CircleShape,
-                color = PdfPrimary,
-                shadowElevation = 4.dp,
+            Row(
                 modifier = Modifier
-                    .size(48.dp)
-                    .offset(y = (-14).dp)
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 4.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    Icon(Icons.Default.Add, contentDescription = "Scan document", tint = Color.White)
+                NavTabItem(Modifier.weight(1f), Icons.Default.GridView, "Home", currentScreen == AppScreen.HOME) {
+                    onTabSelected(AppScreen.HOME)
+                }
+                NavTabItem(Modifier.weight(1f), Icons.Default.Description, "Files", currentScreen == AppScreen.FILES) {
+                    onTabSelected(AppScreen.FILES)
+                }
+                Spacer(Modifier.weight(1f))
+                NavTabItem(Modifier.weight(1f), Icons.Default.Build, "Tools", currentScreen == AppScreen.TOOLS) {
+                    onTabSelected(AppScreen.TOOLS)
+                }
+                NavTabItem(Modifier.weight(1f), Icons.Default.Person, "Account", currentScreen == AppScreen.SETTINGS) {
+                    onTabSelected(AppScreen.SETTINGS)
                 }
             }
-            NavTabItem(Icons.Default.Build, "Tools", currentScreen == AppScreen.TOOLS) { onTabSelected(AppScreen.TOOLS) }
-            NavTabItem(Icons.Default.Person, "Account", currentScreen == AppScreen.SETTINGS) { onTabSelected(AppScreen.SETTINGS) }
+        }
+
+        Surface(
+            onClick = onScanClick,
+            shape = CircleShape,
+            color = PdfPrimary,
+            shadowElevation = 6.dp,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .offset(y = (-18).dp)
+                .size(52.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                Icon(Icons.Default.Add, contentDescription = "Scan document", tint = Color.White)
+            }
         }
     }
 }
 
 @Composable
 private fun NavTabItem(
+    modifier: Modifier,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     selected: Boolean,
@@ -87,14 +98,19 @@ private fun NavTabItem(
 ) {
     val tint = if (selected) PdfPrimary else StudioSlate400
     Column(
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(10.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 4.dp),
+            .padding(horizontal = 4.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(20.dp))
         Spacer(Modifier.height(2.dp))
-        Text(label, style = MaterialTheme.typography.labelSmall, color = tint, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = tint,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+        )
     }
 }

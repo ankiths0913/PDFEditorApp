@@ -214,7 +214,9 @@ private fun PdfPage(
 
                         var bitmap: Bitmap? = null
                         try {
-                            bitmap = createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                            bitmap = createBitmap(width, height, Bitmap.Config.ARGB_8888).apply {
+                                eraseColor(android.graphics.Color.WHITE)
+                            }
                             page.render(
                                 bitmap,
                                 null,

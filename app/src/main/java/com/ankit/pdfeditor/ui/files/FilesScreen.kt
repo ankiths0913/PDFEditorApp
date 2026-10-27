@@ -33,7 +33,7 @@ internal fun FilesScreen(
             SortOption.NAME -> compareBy { it.fileName.lowercase() }
         })
     Column(modifier = Modifier.fillMaxSize().background(StudioSlate50)) {
-        Row(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(horizontal = 20.dp, vertical = 18.dp)) {
+        Row(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).statusBarsPadding().padding(horizontal = 20.dp, vertical = 18.dp)) {
             Text("My Files", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         }
         LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 100.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
