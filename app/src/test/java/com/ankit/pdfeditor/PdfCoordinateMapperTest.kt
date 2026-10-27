@@ -14,8 +14,8 @@ class PdfCoordinateMapperTest {
     }
 
     @Test fun mapsAllRotations() {
-        assertEquals(Offset(210f, 120f), mapNormalizedPointToPdf(Offset(0f, 0f), geometry.copy(rotation = 90)))
+        assertEquals(Offset(10f, 20f), mapNormalizedPointToPdf(Offset(0f, 0f), geometry.copy(rotation = 90)))
         assertEquals(Offset(210f, 20f), mapNormalizedPointToPdf(Offset(0f, 0f), geometry.copy(rotation = 180)))
-        assertEquals(Offset(10f, 20f), mapNormalizedPointToPdf(Offset(0f, 0f), geometry.copy(rotation = 270)))
+        assertEquals(Offset(210f, 120f), mapNormalizedPointToPdf(Offset(0f, 0f), geometry.copy(rotation = 270)))
     }
 }

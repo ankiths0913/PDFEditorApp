@@ -21,9 +21,9 @@ internal fun mapNormalizedPointToPdf(
     val displayX = point.x.coerceIn(0f, 1f) * displayWidth
     val displayY = (1f - point.y.coerceIn(0f, 1f)) * displayHeight
     val (x, y) = when (rotation) {
-        90 -> displayY to geometry.height - displayX
+        90 -> (displayHeight - displayY) to displayX
         180 -> geometry.width - displayX to geometry.height - displayY
-        270 -> geometry.width - displayY to displayX
+        270 -> displayY to (geometry.height - displayX)
         else -> displayX to displayY
     }
     return Offset(
@@ -33,7 +33,4 @@ internal fun mapNormalizedPointToPdf(
 }
 
 internal fun displayedMinDimension(geometry: PdfPageGeometry): Float =
-    max(1f, minOf(
-        if (geometry.rotation % 180 == 0) geometry.width else geometry.height,
-        if (geometry.rotation % 180 == 0) geometry.height else geometry.width
-    ))
+    max(1f, minOf(geometry.width, geometry.height))

@@ -4,7 +4,6 @@ import android.app.Application
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
@@ -13,13 +12,15 @@ import com.ankit.pdfeditor.model.AppScreen
 import com.ankit.pdfeditor.model.EditorMode
 import com.ankit.pdfeditor.model.PdfStroke
 import com.ankit.pdfeditor.model.PdfText
+import com.ankit.pdfeditor.util.decodeAnnotations
+import com.ankit.pdfeditor.util.encodeAnnotations
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.json.JSONArray
-import org.json.JSONObject
+import kotlinx.coroutines.withContext
 import java.io.File
+import java.security.MessageDigest
 
 internal class StudioViewModel(
     application: Application,
@@ -76,34 +77,17 @@ internal class StudioViewModel(
         pageStrokes.clear()
         pageTexts.clear()
         if (uri == null) return
-        runCatching {
-            val root = JSONObject(annotationFile(uri).takeIf { it.exists() }?.readText().orEmpty())
-            root.optJSONArray("strokes").forEachObject { value ->
-                val page = value.getInt("page")
-                val points = value.getJSONArray("points").let { pointsJson ->
-                    buildList {
-                        for (index in 0 until pointsJson.length()) {
-                            val point = pointsJson.getJSONArray(index)
-                            add(Offset(point.getDouble(0).toFloat(), point.getDouble(1).toFloat()))
-                        }
-                    }
-                }
-                pageStrokes[page] = pageStrokes[page].orEmpty() + PdfStroke(
-                    id = value.getString("id"),
-                    points = points,
-                    color = Color(value.getLong("color").toULong()),
-                    widthFraction = value.getDouble("width").toFloat()
-                )
-            }
-            root.optJSONArray("texts").forEachObject { value ->
-                val page = value.getInt("page")
-                pageTexts[page] = pageTexts[page].orEmpty() + PdfText(
-                    id = value.getString("id"),
-                    text = value.getString("text"),
-                    position = Offset(value.getDouble("x").toFloat(), value.getDouble("y").toFloat()),
-                    color = Color(value.getLong("color").toULong()),
-                    sizeFraction = value.getDouble("size").toFloat()
-                )
+        viewModelScope.launch(Dispatchers.IO) {
+            val file = annotationFile(uri)
+            if (!file.exists()) return@launch
+            val raw = runCatching { file.readText() }.getOrNull() ?: return@launch
+            if (raw.isBlank()) return@launch
+            val snapshot = runCatching { decodeAnnotations(raw) }.getOrNull() ?: return@launch
+            withContext(Dispatchers.Main) {
+                pageStrokes.clear()
+                pageTexts.clear()
+                pageStrokes.putAll(snapshot.strokes)
+                pageTexts.putAll(snapshot.texts)
             }
         }
     }
@@ -113,8 +97,8 @@ internal class StudioViewModel(
         saveJob?.cancel()
         saveJob = viewModelScope.launch {
             delay(500)
-            val json = annotationsJson().toString()
-            launch(Dispatchers.IO) { annotationFile(uri).writeText(json) }
+            val json = encodeAnnotations(pageStrokes, pageTexts)
+            withContext(Dispatchers.IO) { annotationFile(uri).writeText(json) }
         }
     }
 
@@ -123,52 +107,28 @@ internal class StudioViewModel(
         pageTexts.clear()
         annotationHistory.clear()
         hasUnsavedChanges = false
-        if (deletePersisted && uri != null) annotationFile(uri).delete()
+        if (deletePersisted && uri != null) {
+            viewModelScope.launch(Dispatchers.IO) {
+                annotationFile(uri).delete()
+            }
+        }
     }
 
-    private fun annotationsJson() = JSONObject().apply {
-        put("strokes", JSONArray().apply {
-            pageStrokes.forEach { (page, values) -> values.forEach { stroke ->
-                put(JSONObject().apply {
-                    put("page", page)
-                    put("id", stroke.id)
-                    put("points", JSONArray().apply {
-                        stroke.points.forEach { put(JSONArray().put(it.x).put(it.y)) }
-                    })
-                    put("color", stroke.color.value.toLong())
-                    put("width", stroke.widthFraction)
-                })
-            } }
-        })
-        put("texts", JSONArray().apply {
-            pageTexts.forEach { (page, values) -> values.forEach { text ->
-                put(JSONObject().apply {
-                    put("page", page)
-                    put("id", text.id)
-                    put("text", text.text)
-                    put("x", text.position.x)
-                    put("y", text.position.y)
-                    put("color", text.color.value.toLong())
-                    put("size", text.sizeFraction)
-                })
-            } }
-        })
+    private fun sha256(input: String): String {
+        val bytes = MessageDigest.getInstance("SHA-256").digest(input.toByteArray(Charsets.UTF_8))
+        return bytes.joinToString("") { "%02x".format(it) }
     }
 
     private fun annotationFile(uri: String) =
-        File(getApplication<Application>().filesDir, "annotations_${uri.hashCode()}.json")
+        File(getApplication<Application>().filesDir, "annotations_${sha256(uri)}.json")
 
     override fun onCleared() {
         saveJob?.cancel()
         pdfUri?.let { uri ->
-            runCatching { annotationFile(uri).writeText(annotationsJson().toString()) }
+            val json = encodeAnnotations(pageStrokes, pageTexts)
+            runCatching { annotationFile(uri).writeText(json) }
         }
         super.onCleared()
-    }
-
-    private fun JSONArray?.forEachObject(action: (JSONObject) -> Unit) {
-        if (this == null) return
-        for (index in 0 until length()) action(getJSONObject(index))
     }
 
     internal sealed interface AnnotationAction {

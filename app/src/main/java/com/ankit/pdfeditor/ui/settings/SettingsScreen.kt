@@ -68,6 +68,17 @@ internal fun SettingsScreen(
             item { SettingItem("Version", BuildConfig.VERSION_NAME) }
             item { SettingItem("About", "PDF Studio") }
             item {
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                        Text("Font License", fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 4.dp))
+                        Text(
+                            "Noto fonts (Noto Sans, Noto Sans Devanagari) are licensed under the SIL Open Font License, Version 1.1.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            }
+            item {
                 Text(
                     "Edited PDFs preserve the original document content while adding annotations.",
                     style = MaterialTheme.typography.bodySmall

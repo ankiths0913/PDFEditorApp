@@ -205,39 +205,43 @@ private suspend fun writeAnnotatedPdf(
     outputStream: OutputStream
 ): Int = withContext(Dispatchers.IO) {
     var skippedAnnotations = 0
-        val input = context.contentResolver.openInputStream(sourceUri)
-            ?: throw IOException("Unable to read the source PDF")
-        input.use { source ->
-            PDDocument.load(source, MemoryUsageSetting.setupTempFileOnly()).use { document ->
-                val font = context.assets.open("NotoSansDevanagari-Regular.ttf").use {
-                    PDType0Font.load(document, it, true)
-                }
-                document.pages.forEachIndexed { pageIndex, page ->
-                    val crop = page.cropBox ?: page.mediaBox
-                    val geometry = PdfPageGeometry(
-                        width = crop.width,
-                        height = crop.height,
-                        cropLeft = crop.lowerLeftX,
-                        cropBottom = crop.lowerLeftY,
-                        rotation = page.rotation
-                    )
-                    val pageMin = displayedMinDimension(geometry)
-                    PDPageContentStream(
-                        document,
-                        page,
-                        PDPageContentStream.AppendMode.APPEND,
-                        true,
-                        true
-                    ).use { content ->
-                        strokesByPage[pageIndex].orEmpty().forEach { stroke ->
-                            try {
-                                if (stroke.points.isNotEmpty()) {
-                                    val color = stroke.color.toAndroidColor()
-                                    val graphicsState = PDExtendedGraphicsState().apply {
-                                        strokingAlphaConstant = stroke.color.alpha
-                                        if (stroke.color.alpha < 1f) blendMode = BlendMode.MULTIPLY
-                                    }
-                                    content.saveGraphicsState()
+    val input = context.contentResolver.openInputStream(sourceUri)
+        ?: throw IOException("Unable to read the source PDF")
+    input.use { source ->
+        PDDocument.load(source, MemoryUsageSetting.setupTempFileOnly()).use { document ->
+            val latinFont = context.assets.open("NotoSans-Regular.ttf").use {
+                PDType0Font.load(document, it, true)
+            }
+            val devanagariFont = context.assets.open("NotoSansDevanagari-Regular.ttf").use {
+                PDType0Font.load(document, it, true)
+            }
+            document.pages.forEachIndexed { pageIndex, page ->
+                val crop = page.cropBox ?: page.mediaBox
+                val geometry = PdfPageGeometry(
+                    width = crop.width,
+                    height = crop.height,
+                    cropLeft = crop.lowerLeftX,
+                    cropBottom = crop.lowerLeftY,
+                    rotation = page.rotation
+                )
+                val pageMin = displayedMinDimension(geometry)
+                PDPageContentStream(
+                    document,
+                    page,
+                    PDPageContentStream.AppendMode.APPEND,
+                    true,
+                    true
+                ).use { content ->
+                    strokesByPage[pageIndex].orEmpty().forEach { stroke ->
+                        try {
+                            if (stroke.points.isNotEmpty()) {
+                                val color = stroke.color.toAndroidColor()
+                                val graphicsState = PDExtendedGraphicsState().apply {
+                                    strokingAlphaConstant = stroke.color.alpha
+                                    if (stroke.color.alpha < 1f) blendMode = BlendMode.MULTIPLY
+                                }
+                                content.saveGraphicsState()
+                                try {
                                     content.setGraphicsStateParameters(graphicsState)
                                     content.setStrokingColor(
                                         android.graphics.Color.red(color),
@@ -254,54 +258,131 @@ private suspend fun writeAnnotatedPdf(
                                         content.lineTo(mapped.x, mapped.y)
                                     }
                                     content.stroke()
+                                } finally {
                                     content.restoreGraphicsState()
                                 }
-                            } catch (_: Exception) {
-                                skippedAnnotations++
                             }
+                        } catch (_: Exception) {
+                            skippedAnnotations++
                         }
-                        textsByPage[pageIndex].orEmpty().forEach { text ->
+                    }
+                    textsByPage[pageIndex].orEmpty().forEach { text ->
+                        try {
+                            val origin = mapNormalizedPointToPdf(text.position, geometry)
+                            val fontSize = text.sizeFraction * pageMin
+                            val color = text.color.toAndroidColor()
+
+                            val lines = text.text.split('\n')
+                            val lineRuns = lines.map { line ->
+                                splitLineToExportRuns(line, latinFont, devanagariFont)
+                            }
+
+                            // Validate before drawing so it throws before beginText() or graphics state changes
+                            lineRuns.forEach { runs ->
+                                runs.forEach { run ->
+                                    run.font.encode(run.text)
+                                }
+                            }
+
+                            content.saveGraphicsState()
                             try {
-                                val color = text.color.toAndroidColor()
                                 val graphicsState = PDExtendedGraphicsState().apply {
                                     nonStrokingAlphaConstant = text.color.alpha
                                 }
-                                val origin = mapNormalizedPointToPdf(text.position, geometry)
-                                val fontSize = text.sizeFraction * pageMin
-                                content.saveGraphicsState()
                                 content.setGraphicsStateParameters(graphicsState)
                                 content.setNonStrokingColor(
                                     android.graphics.Color.red(color),
                                     android.graphics.Color.green(color),
                                     android.graphics.Color.blue(color)
                                 )
-                                text.text.split('\n').forEachIndexed { lineIndex, line ->
+
+                                val radians = Math.toRadians((geometry.rotation % 360).toDouble())
+
+                                lineRuns.forEachIndexed { lineIndex, runs ->
                                     content.beginText()
-                                    content.setFont(font, fontSize)
-                                    content.setTextMatrix(
-                                        Matrix(
-                                            1f,
-                                            0f,
-                                            0f,
-                                            1f,
-                                            origin.x,
-                                            origin.y - lineIndex * fontSize * 1.2f
-                                        )
-                                    )
-                                    content.showText(line)
-                                    content.endText()
+                                    try {
+                                        val lineOffsetY = -lineIndex * fontSize * 1.2f
+                                        val dx = (lineOffsetY * -kotlin.math.sin(radians)).toFloat()
+                                        val dy = (lineOffsetY * kotlin.math.cos(radians)).toFloat()
+                                        val textMatrix = Matrix.getRotateInstance(radians, origin.x + dx, origin.y + dy)
+                                        content.setTextMatrix(textMatrix)
+
+                                        runs.forEach { run ->
+                                            content.setFont(run.font, fontSize)
+                                            content.showText(run.text)
+                                        }
+                                    } finally {
+                                        content.endText()
+                                    }
                                 }
+                            } finally {
                                 content.restoreGraphicsState()
-                            } catch (_: Exception) {
-                                skippedAnnotations++
                             }
+                        } catch (_: Exception) {
+                            skippedAnnotations++
                         }
                     }
                 }
-                document.save(outputStream)
             }
+            document.save(outputStream)
         }
+    }
     skippedAnnotations
+}
+
+private data class ExportTextRun(val text: String, val font: PDType0Font)
+
+private fun splitLineToExportRuns(
+    line: String,
+    latinFont: PDType0Font,
+    devanagariFont: PDType0Font
+): List<ExportTextRun> {
+    if (line.isEmpty()) return emptyList()
+    val runs = mutableListOf<ExportTextRun>()
+    var currentFont: PDType0Font? = null
+    val currentSb = StringBuilder()
+
+    var i = 0
+    while (i < line.length) {
+        val codePoint = line.codePointAt(i)
+        val charCount = Character.charCount(codePoint)
+        val cpString = line.substring(i, i + charCount)
+
+        val font = if (canEncode(latinFont, cpString)) {
+            latinFont
+        } else if (canEncode(devanagariFont, cpString)) {
+            devanagariFont
+        } else {
+            latinFont
+        }
+
+        if (currentFont == null) {
+            currentFont = font
+            currentSb.append(cpString)
+        } else if (font == currentFont) {
+            currentSb.append(cpString)
+        } else {
+            runs.add(ExportTextRun(currentSb.toString(), currentFont))
+            currentFont = font
+            currentSb.clear()
+            currentSb.append(cpString)
+        }
+
+        i += charCount
+    }
+    if (currentFont != null && currentSb.isNotEmpty()) {
+        runs.add(ExportTextRun(currentSb.toString(), currentFont))
+    }
+    return runs
+}
+
+private fun canEncode(font: PDType0Font, text: String): Boolean {
+    return try {
+        font.encode(text)
+        true
+    } catch (_: Exception) {
+        false
+    }
 }
 
 @Composable

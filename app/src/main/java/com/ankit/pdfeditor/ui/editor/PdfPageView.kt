@@ -256,6 +256,13 @@ private fun PdfPage(
 
 
 
+    val latinTypeface = remember(context) {
+        Typeface.createFromAsset(context.assets, "NotoSans-Regular.ttf")
+    }
+    val devanagariTypeface = remember(context) {
+        Typeface.createFromAsset(context.assets, "NotoSansDevanagari-Regular.ttf")
+    }
+
     if (showTextDialog) {
         AlertDialog(
             onDismissRequest = { showTextDialog = false; textInput = "" },
@@ -406,21 +413,35 @@ private fun PdfPage(
                             )
                         }
                         texts.forEach { text ->
-                            val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-                                color = text.color.toAndroidColor()
-                                textSize = text.sizeFraction * minOf(size.width, size.height)
-                                typeface = Typeface.createFromAsset(
-                                    context.assets,
-                                    "NotoSansDevanagari-Regular.ttf"
-                                )
+                            val fontSize = text.sizeFraction * minOf(size.width, size.height)
+                            val colorInt = text.color.toAndroidColor()
+
+                            val latinPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                                color = colorInt
+                                textSize = fontSize
+                                typeface = latinTypeface
                             }
+                            val devanagariPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                                color = colorInt
+                                textSize = fontSize
+                                typeface = devanagariTypeface
+                            }
+
+                            val startX = text.position.x * size.width
+                            val startY = text.position.y * size.height
+                            val lines = text.text.split('\n')
+
                             drawIntoCanvas { canvas ->
-                                canvas.nativeCanvas.drawText(
-                                    text.text,
-                                    text.position.x * size.width,
-                                    (1f - text.position.y) * size.height,
-                                    paint
-                                )
+                                lines.forEachIndexed { lineIndex, line ->
+                                    val lineY = startY + lineIndex * fontSize * 1.2f
+                                    val runs = splitLineToPreviewRuns(line, latinPaint, devanagariPaint)
+                                    var currentX = startX
+                                    runs.forEach { run ->
+                                        val paint = if (run.fontChoice == PreviewFontChoice.LATIN) latinPaint else devanagariPaint
+                                        canvas.nativeCanvas.drawText(run.text, currentX, lineY, paint)
+                                        currentX += paint.measureText(run.text)
+                                    }
+                                }
                             }
                         }
                     }
@@ -428,4 +449,52 @@ private fun PdfPage(
             }
         }
     }
+}
+
+private enum class PreviewFontChoice { LATIN, DEVANAGARI }
+
+private data class PreviewTextRun(val text: String, val fontChoice: PreviewFontChoice)
+
+private fun splitLineToPreviewRuns(
+    line: String,
+    latinPaint: android.graphics.Paint,
+    devanagariPaint: android.graphics.Paint
+): List<PreviewTextRun> {
+    if (line.isEmpty()) return emptyList()
+    val runs = mutableListOf<PreviewTextRun>()
+    var currentChoice: PreviewFontChoice? = null
+    val currentSb = StringBuilder()
+
+    var i = 0
+    while (i < line.length) {
+        val codePoint = line.codePointAt(i)
+        val charCount = Character.charCount(codePoint)
+        val cpString = line.substring(i, i + charCount)
+
+        val choice = if (latinPaint.hasGlyph(cpString)) {
+            PreviewFontChoice.LATIN
+        } else if (devanagariPaint.hasGlyph(cpString)) {
+            PreviewFontChoice.DEVANAGARI
+        } else {
+            PreviewFontChoice.LATIN
+        }
+
+        if (currentChoice == null) {
+            currentChoice = choice
+            currentSb.append(cpString)
+        } else if (choice == currentChoice) {
+            currentSb.append(cpString)
+        } else {
+            runs.add(PreviewTextRun(currentSb.toString(), currentChoice))
+            currentChoice = choice
+            currentSb.clear()
+            currentSb.append(cpString)
+        }
+
+        i += charCount
+    }
+    if (currentChoice != null && currentSb.isNotEmpty()) {
+        runs.add(PreviewTextRun(currentSb.toString(), currentChoice))
+    }
+    return runs
 }
