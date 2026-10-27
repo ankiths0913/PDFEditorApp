@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.core.content.FileProvider
+import com.ankit.pdfeditor.model.RecentFileItem
 import java.io.File
 import java.io.IOException
 import java.text.DateFormat
@@ -22,15 +23,22 @@ internal const val DEFAULT_HIGHLIGHT_ALPHA = 0.7f
 internal fun appDocumentsDir(context: Context): File =
     File(context.filesDir, "pdf_documents").apply { mkdirs() }
 
-internal fun cleanupGeneratedFiles(context: Context) {
+internal fun cleanupGeneratedFiles(context: Context, recentItems: List<RecentFileItem>): List<RecentFileItem> {
+    val referencedNames = recentItems.mapNotNull { Uri.parse(it.uri).lastPathSegment }.toSet()
     val cutoff = System.currentTimeMillis() - 24 * 60 * 60 * 1000L
     appDocumentsDir(context).listFiles()
         .orEmpty()
         .filter { it.name.startsWith("Converted_") || it.name.startsWith("Scan_") }
         .filter { it.lastModified() < cutoff }
+        .filterNot { it.name in referencedNames }
         .forEach { it.delete() }
+    return recentItems.filter { isReadableUri(context, Uri.parse(it.uri)) }
 }
 
+internal fun isReadableUri(context: Context, uri: Uri): Boolean =
+    runCatching {
+        context.contentResolver.openFileDescriptor(uri, "r")?.use { true } ?: false
+    }.getOrDefault(false)
 internal fun fileProviderUri(context: Context, file: File): Uri =
     FileProvider.getUriForFile(context, context.packageName + FILE_PROVIDER_SUFFIX, file)
 

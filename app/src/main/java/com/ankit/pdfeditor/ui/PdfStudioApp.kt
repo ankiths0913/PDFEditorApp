@@ -1,15 +1,9 @@
 package com.ankit.pdfeditor.ui
 
 import android.Manifest
-import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Paint
-import android.graphics.Path as AndroidPath
-import android.graphics.Typeface
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.Bundle
@@ -142,8 +136,6 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.content.edit
-import androidx.core.graphics.createBitmap
-import androidx.core.graphics.scale
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ankit.pdfeditor.model.*
 import com.ankit.pdfeditor.ui.files.FilesScreen
@@ -177,25 +169,22 @@ import com.ankit.pdfeditor.ui.theme.StudioSlate800
 import com.ankit.pdfeditor.ui.theme.StudioSlate900
 import com.ankit.pdfeditor.ui.theme.StudioViolet50
 import com.ankit.pdfeditor.ui.theme.StudioViolet600
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
-import com.tom_roush.pdfbox.pdmodel.font.PDType1Font
+import com.tom_roush.pdfbox.pdmodel.font.PDType0Font
+import com.tom_roush.pdfbox.pdmodel.graphics.blend.BlendMode
+import com.tom_roush.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState
+import com.tom_roush.pdfbox.io.MemoryUsageSetting
 import com.tom_roush.pdfbox.util.Matrix
 import java.io.File
 import java.io.IOException
 import java.io.OutputStream
-import java.text.DateFormat
-import java.util.Date
 import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.time.Duration.Companion.milliseconds
@@ -206,30 +195,33 @@ private const val MAX_UNDO_HISTORY = 50
 // by the theme module). Declared locally so this file doesn't need an extra
 // import just for a single accent color.
 private val PdfPrimary = Color(0xFF6366F1)
-
-private sealed interface AnnotationAction {
-    data class StrokeAdded(val page: Int, val stroke: PdfStroke) : AnnotationAction
-    data class StrokeRemoved(val page: Int, val stroke: PdfStroke) : AnnotationAction
-    data class TextAdded(val page: Int, val text: PdfText) : AnnotationAction
-    data class TextRemoved(val page: Int, val text: PdfText) : AnnotationAction
-}
+private typealias AnnotationAction = StudioViewModel.AnnotationAction
 
 private suspend fun writeAnnotatedPdf(
     context: Context,
     sourceUri: Uri,
     strokesByPage: Map<Int, List<PdfStroke>>,
     textsByPage: Map<Int, List<PdfText>>,
-    outputStream: OutputStream,
-    rendererMutex: Mutex
-) = withContext(Dispatchers.IO) {
-    rendererMutex.withLock {
+    outputStream: OutputStream
+): Int = withContext(Dispatchers.IO) {
+    var skippedAnnotations = 0
         val input = context.contentResolver.openInputStream(sourceUri)
             ?: throw IOException("Unable to read the source PDF")
         input.use { source ->
-            PDDocument.load(source).use { document ->
+            PDDocument.load(source, MemoryUsageSetting.setupTempFileOnly()).use { document ->
+                val font = context.assets.open("NotoSansDevanagari-Regular.ttf").use {
+                    PDType0Font.load(document, it, true)
+                }
                 document.pages.forEachIndexed { pageIndex, page ->
-                    val pageWidth = page.mediaBox.width
-                    val pageHeight = page.mediaBox.height
+                    val crop = page.cropBox ?: page.mediaBox
+                    val geometry = PdfPageGeometry(
+                        width = crop.width,
+                        height = crop.height,
+                        cropLeft = crop.lowerLeftX,
+                        cropBottom = crop.lowerLeftY,
+                        rotation = page.rotation
+                    )
+                    val pageMin = displayedMinDimension(geometry)
                     PDPageContentStream(
                         document,
                         page,
@@ -238,50 +230,78 @@ private suspend fun writeAnnotatedPdf(
                         true
                     ).use { content ->
                         strokesByPage[pageIndex].orEmpty().forEach { stroke ->
-                            if (stroke.points.isNotEmpty()) {
-                                val color = stroke.color.toAndroidColor()
-                                content.setStrokingColor(
+                            try {
+                                if (stroke.points.isNotEmpty()) {
+                                    val color = stroke.color.toAndroidColor()
+                                    val graphicsState = PDExtendedGraphicsState().apply {
+                                        strokingAlphaConstant = stroke.color.alpha
+                                        if (stroke.color.alpha < 1f) blendMode = BlendMode.MULTIPLY
+                                    }
+                                    content.saveGraphicsState()
+                                    content.setGraphicsStateParameters(graphicsState)
+                                    content.setStrokingColor(
+                                        android.graphics.Color.red(color),
+                                        android.graphics.Color.green(color),
+                                        android.graphics.Color.blue(color)
+                                    )
+                                    content.setLineCapStyle(1)
+                                    content.setLineJoinStyle(1)
+                                    content.setLineWidth(stroke.widthFraction * pageMin)
+                                    val first = mapNormalizedPointToPdf(stroke.points.first(), geometry)
+                                    content.moveTo(first.x, first.y)
+                                    stroke.points.drop(1).forEach { point ->
+                                        val mapped = mapNormalizedPointToPdf(point, geometry)
+                                        content.lineTo(mapped.x, mapped.y)
+                                    }
+                                    content.stroke()
+                                    content.restoreGraphicsState()
+                                }
+                            } catch (_: Exception) {
+                                skippedAnnotations++
+                            }
+                        }
+                        textsByPage[pageIndex].orEmpty().forEach { text ->
+                            try {
+                                val color = text.color.toAndroidColor()
+                                val graphicsState = PDExtendedGraphicsState().apply {
+                                    nonStrokingAlphaConstant = text.color.alpha
+                                }
+                                val origin = mapNormalizedPointToPdf(text.position, geometry)
+                                val fontSize = text.sizeFraction * pageMin
+                                content.saveGraphicsState()
+                                content.setGraphicsStateParameters(graphicsState)
+                                content.setNonStrokingColor(
                                     android.graphics.Color.red(color),
                                     android.graphics.Color.green(color),
                                     android.graphics.Color.blue(color)
                                 )
-                                content.setLineWidth(stroke.widthFraction * minOf(pageWidth, pageHeight))
-                                val first = stroke.points.first()
-                                content.moveTo(first.x * pageWidth, (1f - first.y) * pageHeight)
-                                stroke.points.drop(1).forEach { point ->
-                                    content.lineTo(point.x * pageWidth, (1f - point.y) * pageHeight)
+                                text.text.split('\n').forEachIndexed { lineIndex, line ->
+                                    content.beginText()
+                                    content.setFont(font, fontSize)
+                                    content.setTextMatrix(
+                                        Matrix(
+                                            1f,
+                                            0f,
+                                            0f,
+                                            1f,
+                                            origin.x,
+                                            origin.y - lineIndex * fontSize * 1.2f
+                                        )
+                                    )
+                                    content.showText(line)
+                                    content.endText()
                                 }
-                                content.stroke()
+                                content.restoreGraphicsState()
+                            } catch (_: Exception) {
+                                skippedAnnotations++
                             }
-                        }
-                        textsByPage[pageIndex].orEmpty().forEach { text ->
-                            val color = text.color.toAndroidColor()
-                            content.setNonStrokingColor(
-                                android.graphics.Color.red(color),
-                                android.graphics.Color.green(color),
-                                android.graphics.Color.blue(color)
-                            )
-                            content.beginText()
-                            content.setFont(PDType1Font.HELVETICA, text.sizeFraction * minOf(pageWidth, pageHeight))
-                            content.setTextMatrix(
-                                Matrix(
-                                    1f,
-                                    0f,
-                                    0f,
-                                    1f,
-                                    text.position.x * pageWidth,
-                                    (1f - text.position.y) * pageHeight
-                                )
-                            )
-                            content.showText(text.text)
-                            content.endText()
                         }
                     }
                 }
                 document.save(outputStream)
             }
         }
-    }
+    skippedAnnotations
 }
 
 @Composable
@@ -291,39 +311,44 @@ internal fun PdfStudioApp() {
     val scope = rememberCoroutineScope()
     val rendererMutex = remember { Mutex() }
     val prefs = remember { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }
-    LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) { cleanupGeneratedFiles(context) }
-    }
-
     var isDarkTheme by remember { mutableStateOf(prefs.getBoolean(DARK_THEME_KEY, false)) }
-    var currentScreen by remember { mutableStateOf(AppScreen.HOME) }
+    val currentScreen = studioViewModel.currentScreen
     var pdfUri by remember { mutableStateOf<Uri?>(null) }
     var renderer by remember { mutableStateOf<PdfRenderer?>(null) }
     var pageCount by remember { mutableIntStateOf(0) }
-    var currentPage by remember { mutableIntStateOf(0) }
-    var zoomLevel by remember { mutableFloatStateOf(1f) }
+    val currentPage = studioViewModel.currentPage
+    val zoomLevel = studioViewModel.zoomLevel
     var isBusy by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var hasUnsavedChanges by remember { mutableStateOf(false) }
+    val hasUnsavedChanges = studioViewModel.hasUnsavedChanges
     var showUnsavedDialog by remember { mutableStateOf(false) }
 
-    var editorMode by remember { mutableStateOf(EditorMode.VIEW) }
-    var currentColor by remember { mutableStateOf(Color.Red) }
-    var strokeWidth by remember { mutableFloatStateOf(8f) }
+    val editorMode = studioViewModel.editorMode
+    val currentColor = studioViewModel.currentColor
+    val strokeWidth = studioViewModel.strokeWidth
 
     var recentFiles by remember { mutableStateOf(loadRecentFiles(context)) }
+    LaunchedEffect(Unit) {
+        val valid = withContext(Dispatchers.IO) {
+            cleanupGeneratedFiles(context, recentFiles)
+        }
+        if (valid.size != recentFiles.size) {
+            recentFiles = valid
+            persistRecentFiles(context, valid)
+        }
+    }
     val pageStrokes = studioViewModel.pageStrokes
     val pageTexts = studioViewModel.pageTexts
-    val annotationHistory = remember { mutableStateListOf<AnnotationAction>() }
+    val annotationHistory = studioViewModel.annotationHistory
 
     fun clearAnnotations() {
-        studioViewModel.clearAnnotations()
+        studioViewModel.clearAnnotations(studioViewModel.pdfUri, deletePersisted = true)
         annotationHistory.clear()
-        hasUnsavedChanges = false
+        studioViewModel.hasUnsavedChanges = false
     }
 
     fun setChanged() {
-        hasUnsavedChanges =
+        studioViewModel.hasUnsavedChanges =
             pageStrokes.values.any { it.isNotEmpty() } ||
                     pageTexts.values.any { it.isNotEmpty() }
     }
@@ -382,7 +407,6 @@ internal fun PdfStudioApp() {
                 val oldRenderer = renderer
                 renderer = null
                 pageCount = 0
-                currentPage = 0
 
                 withContext(Dispatchers.IO) {
                     try {
@@ -392,15 +416,20 @@ internal fun PdfStudioApp() {
                 }
             }
 
-            clearAnnotations()
-
             renderer = newRenderer
             pageCount = newPageCount
-            currentPage = 0
-            zoomLevel = 1f
-            editorMode = EditorMode.VIEW
+            val previousUri = studioViewModel.pdfUri
+            val sameDocument = previousUri == uri.toString()
+            studioViewModel.pdfUri = uri.toString()
             pdfUri = uri
-            hasUnsavedChanges = false
+            if (!sameDocument) {
+                studioViewModel.clearAnnotations(previousUri, deletePersisted = false)
+                studioViewModel.currentPage = 0
+                studioViewModel.zoomLevel = 1f
+                studioViewModel.editorMode = EditorMode.VIEW
+                studioViewModel.hasUnsavedChanges = false
+            }
+            studioViewModel.restoreAnnotations(uri.toString())
             installed = true
 
             addRecent(
@@ -410,7 +439,7 @@ internal fun PdfStudioApp() {
                 }
             )
 
-            currentScreen = AppScreen.EDITOR
+            studioViewModel.currentScreen = AppScreen.EDITOR
         } finally {
             if (!installed) {
                 withContext(Dispatchers.IO) {
@@ -433,6 +462,15 @@ internal fun PdfStudioApp() {
                 errorMessage = e.message ?: "Could not open PDF"
             } finally {
                 isBusy = false
+            }
+
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        studioViewModel.pdfUri?.let { savedUri ->
+            if (studioViewModel.currentScreen == AppScreen.EDITOR && renderer == null) {
+                openPdf(Uri.parse(savedUri))
             }
         }
     }
@@ -542,7 +580,7 @@ internal fun PdfStudioApp() {
         contract = ActivityResultContracts.CreateDocument("application/pdf")
     ) { uri: Uri? ->
         uri ?: return@rememberLauncherForActivityResult
-        val activeRenderer = renderer ?: return@rememberLauncherForActivityResult
+        renderer ?: return@rememberLauncherForActivityResult
         val activeUri = pdfUri ?: return@rememberLauncherForActivityResult
         val strokesSnapshot = pageStrokes.mapValues { it.value.toList() }
         val textsSnapshot = pageTexts.mapValues { it.value.toList() }
@@ -553,14 +591,16 @@ internal fun PdfStudioApp() {
                 val output = context.contentResolver.openOutputStream(uri)
                     ?: throw IOException("Unable to create the destination PDF")
                 output.use {
-                    writeAnnotatedPdf(
+                    val skipped = writeAnnotatedPdf(
                         context = context,
                         sourceUri = activeUri,
                         strokesByPage = strokesSnapshot,
                         textsByPage = textsSnapshot,
-                        outputStream = it,
-                        rendererMutex = rendererMutex
+                        outputStream = it
                     )
+                    if (skipped > 0) {
+                        errorMessage = "$skipped annotation(s) could not be exported."
+                    }
                 }
                 try {
                     context.contentResolver.takePersistableUriPermission(
@@ -582,7 +622,7 @@ internal fun PdfStudioApp() {
         if (hasUnsavedChanges) {
             showUnsavedDialog = true
         } else {
-            currentScreen = AppScreen.HOME
+            studioViewModel.currentScreen = AppScreen.HOME
         }
     }
 
@@ -590,7 +630,7 @@ internal fun PdfStudioApp() {
         if (currentScreen == AppScreen.EDITOR) {
             requestBack()
         } else {
-            currentScreen = AppScreen.HOME
+            studioViewModel.currentScreen = AppScreen.HOME
         }
     }
 
@@ -612,7 +652,15 @@ internal fun PdfStudioApp() {
             )
         }
         val onScanDoc: () -> Unit = { launchScanDoc() }
-        val onFileTap: (Uri) -> Unit = { selectedUri -> openPdf(selectedUri) }
+        val onFileTap: (Uri) -> Unit = { selectedUri ->
+            if (isReadableUri(context, selectedUri)) {
+                openPdf(selectedUri)
+            } else {
+                recentFiles = recentFiles.filterNot { it.uri == selectedUri.toString() }
+                persistRecentFiles(context, recentFiles)
+                errorMessage = "File no longer available"
+            }
+        }
         val onToggleFavorite: (RecentFileItem) -> Unit = { fileItem ->
             recentFiles = recentFiles.map {
                 if (it.uri == fileItem.uri) it.copy(isFavorite = !it.isFavorite) else it
@@ -638,7 +686,7 @@ internal fun PdfStudioApp() {
                 onPhotoClick = onPhotoClick,
                 onScanDoc = onScanDoc,
                 onFileTap = onFileTap,
-                onSettingsTap = { currentScreen = AppScreen.SETTINGS },
+                onSettingsTap = { studioViewModel.currentScreen = AppScreen.SETTINGS },
                 onToggleFavorite = onToggleFavorite,
                 onRemove = onRemoveRecent,
                 onShare = onShareRecent
@@ -677,21 +725,21 @@ internal fun PdfStudioApp() {
                             isBusy = isBusy,
                             hasUnsavedChanges = hasUnsavedChanges,
                             hasUndoHistory = annotationHistory.isNotEmpty(),
-                            onPageChange = { currentPage = it.coerceIn(0, pageCount - 1) },
-                            onZoomChange = { zoomLevel = it.coerceIn(1f, 3f) },
-                            onModeChange = { editorMode = it },
-                            onColorChange = { currentColor = it },
-                            onWidthChange = { strokeWidth = it },
+                            onPageChange = { studioViewModel.currentPage = it.coerceIn(0, pageCount - 1) },
+                            onZoomChange = { studioViewModel.zoomLevel = it.coerceIn(1f, 3f) },
+                            onModeChange = { studioViewModel.editorMode = it },
+                            onColorChange = { studioViewModel.currentColor = it },
+                            onWidthChange = { studioViewModel.strokeWidth = it },
                             onStrokeAdded = { pageIdx, stroke ->
                                 pageStrokes[pageIdx] = pageStrokes[pageIdx].orEmpty() + stroke
-                                studioViewModel.persistAnnotations()
-                                pushHistory(AnnotationAction.StrokeAdded(pageIdx, stroke))
+                                studioViewModel.schedulePersistAnnotations(studioViewModel.pdfUri)
+                                pushHistory(StudioViewModel.AnnotationAction.StrokeAdded(pageIdx, stroke))
                                 setChanged()
                             },
                             onTextAdded = { pageIdx, text ->
                                 pageTexts[pageIdx] = pageTexts[pageIdx].orEmpty() + text
-                                studioViewModel.persistAnnotations()
-                                pushHistory(AnnotationAction.TextAdded(pageIdx, text))
+                                studioViewModel.schedulePersistAnnotations(studioViewModel.pdfUri)
+                                pushHistory(StudioViewModel.AnnotationAction.TextAdded(pageIdx, text))
                                 setChanged()
                             },
                             onEraseAt = { pageIdx, point ->
@@ -705,37 +753,37 @@ internal fun PdfStudioApp() {
                                 when {
                                     nearestStroke != null && nearestStrokeDistance <= 0.045f -> {
                                         pageStrokes[pageIdx] = strokes.filterNot { it.id == nearestStroke.id }
-                                        studioViewModel.persistAnnotations()
-                                        pushHistory(AnnotationAction.StrokeRemoved(pageIdx, nearestStroke))
+                                        studioViewModel.schedulePersistAnnotations(studioViewModel.pdfUri)
+                                        pushHistory(StudioViewModel.AnnotationAction.StrokeRemoved(pageIdx, nearestStroke))
                                         setChanged()
                                     }
                                     nearestText != null && nearestTextDistance <= 0.09f -> {
                                         pageTexts[pageIdx] = texts.filterNot { it.id == nearestText.id }
-                                        studioViewModel.persistAnnotations()
-                                        pushHistory(AnnotationAction.TextRemoved(pageIdx, nearestText))
+                                        studioViewModel.schedulePersistAnnotations(studioViewModel.pdfUri)
+                                        pushHistory(StudioViewModel.AnnotationAction.TextRemoved(pageIdx, nearestText))
                                         setChanged()
                                     }
                                 }
                             },
                             onUndo = {
                                 when (val action = annotationHistory.removeLastOrNull()) {
-                                    is AnnotationAction.StrokeAdded -> {
+                                    is StudioViewModel.AnnotationAction.StrokeAdded -> {
                                         pageStrokes[action.page] = pageStrokes[action.page].orEmpty()
                                             .filterNot { it.id == action.stroke.id }
                                     }
-                                    is AnnotationAction.StrokeRemoved -> {
+                                    is StudioViewModel.AnnotationAction.StrokeRemoved -> {
                                         pageStrokes[action.page] = pageStrokes[action.page].orEmpty() + action.stroke
                                     }
-                                    is AnnotationAction.TextAdded -> {
+                                    is StudioViewModel.AnnotationAction.TextAdded -> {
                                         pageTexts[action.page] = pageTexts[action.page].orEmpty()
                                             .filterNot { it.id == action.text.id }
                                     }
-                                    is AnnotationAction.TextRemoved -> {
+                                    is StudioViewModel.AnnotationAction.TextRemoved -> {
                                         pageTexts[action.page] = pageTexts[action.page].orEmpty() + action.text
                                     }
                                     null -> Unit
                                 }
-                                studioViewModel.persistAnnotations()
+                                studioViewModel.schedulePersistAnnotations(studioViewModel.pdfUri)
                                 setChanged()
                             },
                             onSaveClick = {
@@ -771,7 +819,7 @@ internal fun PdfStudioApp() {
                     isDarkTheme = value
                     prefs.edit { putBoolean(DARK_THEME_KEY, value) }
                 },
-                onBackClick = { currentScreen = AppScreen.HOME }
+                onBackClick = { studioViewModel.currentScreen = AppScreen.HOME }
             )
         }
 
@@ -779,7 +827,7 @@ internal fun PdfStudioApp() {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
                 BottomNavBar(
                     currentScreen = currentScreen,
-                    onTabSelected = { currentScreen = it },
+                    onTabSelected = { studioViewModel.currentScreen = it },
                     onScanClick = onScanDoc
                 )
             }
@@ -844,7 +892,7 @@ internal fun PdfStudioApp() {
                         TextButton(onClick = {
                             showUnsavedDialog = false
                             clearAnnotations()
-                            currentScreen = AppScreen.HOME
+                            studioViewModel.currentScreen = AppScreen.HOME
                         }) { Text("Discard") }
                         TextButton(onClick = { showUnsavedDialog = false }) { Text("Cancel") }
                     }

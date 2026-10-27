@@ -1,16 +1,12 @@
 package com.ankit.pdfeditor.util
 
-import android.graphics.Bitmap
-import android.graphics.Paint
-import android.graphics.Path as AndroidPath
-import android.graphics.Typeface
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import com.ankit.pdfeditor.model.*
+import com.ankit.pdfeditor.model.PdfStroke
 import kotlin.math.abs
 import kotlin.math.hypot
 
@@ -56,46 +52,4 @@ internal fun DrawScope.drawNormalizedStroke(stroke: PdfStroke) {
         color = stroke.color,
         style = Stroke(width = stroke.widthFraction * minDimension, cap = StrokeCap.Round)
     )
-}
-
-internal fun bakeAnnotations(
-    canvas: android.graphics.Canvas,
-    bitmap: Bitmap,
-    strokes: List<PdfStroke>,
-    texts: List<PdfText>
-) {
-    val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeCap = Paint.Cap.ROUND
-        strokeJoin = Paint.Join.ROUND
-    }
-    val pageMin = minOf(bitmap.width, bitmap.height).toFloat()
-
-    strokes.forEach { stroke ->
-        if (stroke.points.isEmpty()) return@forEach
-        strokePaint.color = stroke.color.toAndroidColor()
-        strokePaint.strokeWidth = stroke.widthFraction * pageMin
-        val path = AndroidPath()
-        val first = stroke.points.first()
-        path.moveTo(first.x * bitmap.width, first.y * bitmap.height)
-        stroke.points.drop(1).forEach { point ->
-            path.lineTo(point.x * bitmap.width, point.y * bitmap.height)
-        }
-        canvas.drawPath(path, strokePaint)
-    }
-
-    val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-        typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
-    }
-    texts.forEach { text ->
-        textPaint.color = text.color.toAndroidColor()
-        textPaint.textSize = text.sizeFraction * pageMin
-        canvas.drawText(
-            text.text,
-            text.position.x * bitmap.width,
-            text.position.y * bitmap.height,
-            textPaint
-        )
-    }
 }

@@ -55,8 +55,9 @@ internal fun convertImageToPdfOnDevice(context: Context, imageUri: Uri): File? {
         )
         val pdfDocument = PdfDocument()
         try {
-            val pageWidth = 612
-            val pageHeight = 792
+            val landscape = finalBitmap.width > finalBitmap.height
+            val pageWidth = if (landscape) 842 else 595
+            val pageHeight = if (landscape) 595 else 842
             val pageInfo = PdfDocument.PageInfo.Builder(
                 pageWidth,
                 pageHeight,

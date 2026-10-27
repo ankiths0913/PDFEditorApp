@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -56,6 +57,7 @@ internal fun PdfViewerWithSwipe(
     onTextAdded: (PdfText) -> Unit,
     onEraseAt: (Offset) -> Unit
 ) {
+    val context = LocalContext.current
     val stripState = rememberLazyListState()
     LaunchedEffect(currentPage) {
         stripState.animateScrollToItem((currentPage - 1).coerceAtLeast(0))
@@ -184,6 +186,7 @@ private fun PdfPage(
     onTextAdded: (PdfText) -> Unit,
     onEraseAt: (Offset) -> Unit
 ) {
+    val context = LocalContext.current
     var renderInfo by remember(pageIndex, renderer) { mutableStateOf<PageRenderInfo?>(null) }
     var renderError by remember(pageIndex, renderer) { mutableStateOf<String?>(null) }
     var currentPoints by remember { mutableStateOf<List<Offset>>(emptyList()) }
@@ -406,13 +409,16 @@ private fun PdfPage(
                             val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
                                 color = text.color.toAndroidColor()
                                 textSize = text.sizeFraction * minOf(size.width, size.height)
-                                typeface = Typeface.DEFAULT
+                                typeface = Typeface.createFromAsset(
+                                    context.assets,
+                                    "NotoSansDevanagari-Regular.ttf"
+                                )
                             }
                             drawIntoCanvas { canvas ->
                                 canvas.nativeCanvas.drawText(
                                     text.text,
                                     text.position.x * size.width,
-                                    text.position.y * size.height,
+                                    (1f - text.position.y) * size.height,
                                     paint
                                 )
                             }
