@@ -90,6 +90,7 @@ internal class StudioViewModel(
     }
 
     fun pushAction(action: AnnotationAction) {
+        applyAction(action)
         annotationHistory.add(action)
         redoHistory.clear()
         if (annotationHistory.size > 50) annotationHistory.removeAt(0)

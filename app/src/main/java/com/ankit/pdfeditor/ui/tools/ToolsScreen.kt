@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -70,7 +71,20 @@ internal fun ToolsScreen(
     var resultDialogImages by remember { mutableStateOf<List<File>>(emptyList()) }
     var resultDialogTitle by remember { mutableStateOf("") }
     var resultDialogMessage by remember { mutableStateOf("") }
+    var resultNameText by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var pendingSaveFile by remember { mutableStateOf<File?>(null) }
+    var pendingSaveImages by remember { mutableStateOf<List<File>>(emptyList()) }
+
+    LaunchedEffect(resultDialogFile) {
+        resultDialogFile?.let { resultNameText = it.nameWithoutExtension }
+    }
+
+    fun applyResultName(file: File): File {
+        val renamed = renameLocalFile(file, resultNameText)
+        resultDialogFile = renamed
+        return renamed
+    }
 
     // Tool Dialog States
     var splitPdfUri by remember { mutableStateOf<Uri?>(null) }
@@ -207,6 +221,34 @@ internal fun ToolsScreen(
                 } else {
                     errorMessage = "Failed to create searchable PDF from images."
                 }
+            }
+
+        }
+    }
+
+    val savePdfLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/pdf")
+    ) { uri ->
+        val file = pendingSaveFile
+        if (uri != null && file != null) {
+            scope.launch {
+                val ok = copyFileToUri(context, file, uri)
+                Toast.makeText(
+                    context,
+                    if (ok) "PDF saved" else "Could not save PDF",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    val saveImagesLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { tree ->
+        if (tree != null && pendingSaveImages.isNotEmpty()) {
+            scope.launch {
+                val count = copyFilesToFolder(context, pendingSaveImages, tree)
+                Toast.makeText(context, "Saved $count image(s)", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -345,29 +387,41 @@ internal fun ToolsScreen(
                 resultDialogImages = emptyList()
             },
             title = { Text(resultDialogTitle) },
-            text = { Text(resultDialogMessage) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(resultDialogMessage)
+                    if (resultDialogFile != null) {
+                        OutlinedTextField(
+                            value = resultNameText,
+                            onValueChange = { resultNameText = it },
+                            singleLine = true,
+                            label = { Text("File name") },
+                            suffix = { Text(".pdf") }
+                        )
+                    }
+                }
+            },
             confirmButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     resultDialogFile?.let { file ->
                         TextButton(onClick = {
-                            val uri = fileProviderUri(context, file)
+                            val renamed = applyResultName(file)
+                            val uri = fileProviderUri(context, renamed)
                             resultDialogFile = null
                             onOpenPdf(uri)
                         }) { Text("Open PDF") }
 
                         TextButton(onClick = {
-                            val uri = fileProviderUri(context, file)
-                            sharePdf(context, uri)
-                        }) { Text("Share") }
+                            val renamed = applyResultName(file)
+                            pendingSaveFile = renamed
+                            savePdfLauncher.launch(renamed.name)
+                        }) { Text("Save PDF") }
                     }
                     if (resultDialogImages.isNotEmpty()) {
                         TextButton(onClick = {
-                            val firstImage = resultDialogImages.firstOrNull()
-                            if (firstImage != null) {
-                                val uri = fileProviderUri(context, firstImage)
-                                sharePdf(context, uri)
-                            }
-                        }) { Text("Share First") }
+                            pendingSaveImages = resultDialogImages
+                            saveImagesLauncher.launch(null)
+                        }) { Text("Save Images") }
                     }
                 }
             },

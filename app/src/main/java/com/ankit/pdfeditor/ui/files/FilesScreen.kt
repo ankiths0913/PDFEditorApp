@@ -20,6 +20,8 @@ internal fun FilesScreen(
     onToggleFavorite: (RecentFileItem) -> Unit,
     onRemove: (RecentFileItem) -> Unit,
     onShare: (RecentFileItem) -> Unit,
+    onRename: (RecentFileItem) -> Unit,
+    onDelete: (RecentFileItem) -> Unit,
     onClearAll: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -70,7 +72,7 @@ internal fun FilesScreen(
             item { RecentFilesHeader(filteredFiles.size, currentSort) { currentSort = it } }
             if (filteredFiles.isNotEmpty()) {
                 items(filteredFiles, key = { it.uri }) { file ->
-                    RecentFileCard(file, { onFileTap(file) }, { onToggleFavorite(file) }, { onShare(file) }, { onRemove(file) })
+                    RecentFileCard(file, { onFileTap(file) }, { onToggleFavorite(file) }, { onShare(file) }, { onRename(file) }, { onRemove(file) }, { onDelete(file) })
                 }
             } else if (recentFiles.isEmpty()) item { EmptyFilesMessage("No PDF files yet. Open one from Home to get started!") }
             else item { EmptyFilesMessage("No files match your search.") }

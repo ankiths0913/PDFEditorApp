@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -70,6 +71,8 @@ private suspend fun writeAnnotatedPdf(
             val latinFont = context.assets.open("NotoSans-Regular.ttf").use {
                 PDType0Font.load(document, it, true)
             }
+
+
             val devanagariFont = context.assets.open("NotoSansDevanagari-Regular.ttf").use {
                 PDType0Font.load(document, it, true)
             }
@@ -344,6 +347,10 @@ internal fun PdfStudioApp(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showUnsavedDialog by remember { mutableStateOf(false) }
     var showSaveOverwriteDialog by remember { mutableStateOf(false) }
+    var renameTarget by remember { mutableStateOf<RecentFileItem?>(null) }
+    var deleteTarget by remember { mutableStateOf<RecentFileItem?>(null) }
+    var showSaveCopyDialog by remember { mutableStateOf(false) }
+    var pendingScanFile by remember { mutableStateOf<File?>(null) }
     var passwordPromptUri by remember { mutableStateOf<Uri?>(null) }
     var passwordPromptText by remember { mutableStateOf("") }
 
@@ -503,9 +510,15 @@ internal fun PdfStudioApp(
     val pageSignatures = studioViewModel.pageSignatures
 
     val openPdfLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            }
             openPdf(uri)
         }
     }
@@ -535,7 +548,14 @@ internal fun PdfStudioApp(
             if (scanResult != null) {
                 val pdf = scanResult.pdf
                 if (pdf != null) {
-                    openPdf(pdf.uri)
+                    scope.launch {
+                        isBusy = true
+                        val copy = withContext(Dispatchers.IO) {
+                            copyUriToAppFile(context, pdf.uri, "Scan_${System.currentTimeMillis()}.pdf")
+                        }
+                        isBusy = false
+                        if (copy != null) pendingScanFile = copy else openPdf(pdf.uri)
+                    }
                 } else {
                     val pages = scanResult.pages
                     val pageUris = pages?.mapNotNull { it.imageUri } ?: emptyList()
@@ -545,7 +565,7 @@ internal fun PdfStudioApp(
                             val ocrPdf = generateSearchablePdfFromImages(context, pageUris)
                             isBusy = false
                             if (ocrPdf != null) {
-                                openPdf(fileProviderUri(context, ocrPdf))
+                                pendingScanFile = ocrPdf
                             } else {
                                 errorMessage = "Failed to generate searchable PDF from scanned pages."
                             }
@@ -601,6 +621,51 @@ internal fun PdfStudioApp(
         }
     }
 
+    fun onRenameRecent(item: RecentFileItem) {
+        renameTarget = item
+    }
+
+    fun onDeleteRecent(item: RecentFileItem) {
+        deleteTarget = item
+    }
+
+    fun confirmRename(item: RecentFileItem, newBase: String) {
+        val base = cleanBaseName(newBase)
+        if (base.isBlank()) return
+        scope.launch {
+            val oldUri = Uri.parse(item.uri)
+            val newUri = renamePdfDocument(context, oldUri, base)
+            recentFiles = recentFiles.map {
+                if (it.uri == item.uri) {
+                    it.copy(uri = (newUri ?: oldUri).toString(), fileName = "$base.pdf")
+                } else it
+            }
+            persistRecentFiles(context, recentFiles)
+            if (newUri != null && studioViewModel.pdfUri == item.uri) {
+                studioViewModel.pdfUri = newUri.toString()
+            }
+            if (newUri == null) {
+                Toast.makeText(
+                    context,
+                    "Renamed in PDF Studio only. The original file's name couldn't be changed.",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    fun confirmDelete(item: RecentFileItem) {
+        scope.launch {
+            val deleted = deletePdfDocument(context, Uri.parse(item.uri))
+            onRemoveRecent(item)
+            Toast.makeText(
+                context,
+                if (deleted) "File deleted" else "Couldn't delete the file itself. Removed from the list.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
     fun onFileTap(item: RecentFileItem) {
         val uri = Uri.parse(item.uri)
         if (isReadableUri(context, uri)) {
@@ -611,7 +676,7 @@ internal fun PdfStudioApp(
         }
     }
 
-    fun saveEditedPdf(overwrite: Boolean) {
+    fun saveEditedPdf(overwrite: Boolean, customBaseName: String? = null) {
         val currentUri = studioViewModel.pdfUri?.let { Uri.parse(it) } ?: return
         scope.launch {
             isBusy = true
@@ -619,6 +684,8 @@ internal fun PdfStudioApp(
             try {
                 val documentFile = if (overwrite && currentUri.scheme == "file") {
                     File(currentUri.path.orEmpty())
+                } else if (customBaseName != null) {
+                    uniqueFile(appDocumentsDir(context), cleanBaseName(customBaseName))
                 } else {
                     File(
                         appDocumentsDir(context),
@@ -701,8 +768,67 @@ internal fun PdfStudioApp(
             dismissButton = {
                 TextButton(onClick = {
                     showSaveOverwriteDialog = false
-                    saveEditedPdf(overwrite = false)
+                    showSaveCopyDialog = true
                 }) { Text("Save as Copy") }
+            }
+        )
+    }
+
+    if (showSaveCopyDialog) {
+        val uriString = studioViewModel.pdfUri
+        val currentName = remember(uriString) {
+            uriString?.let { resolveFileName(context, Uri.parse(it)) } ?: "document.pdf"
+        }
+        NameDialog(
+            title = "Save as copy",
+            initialName = cleanBaseName(currentName) + "_edited",
+            confirmLabel = "Save",
+            onConfirm = {
+                showSaveCopyDialog = false
+                saveEditedPdf(overwrite = false, customBaseName = it)
+            },
+            onCancel = { showSaveCopyDialog = false }
+        )
+    }
+
+    renameTarget?.let { item ->
+        NameDialog(
+            title = "Rename PDF",
+            initialName = cleanBaseName(item.fileName),
+            confirmLabel = "Rename",
+            onConfirm = { confirmRename(item, it); renameTarget = null },
+            onCancel = { renameTarget = null }
+        )
+    }
+
+    deleteTarget?.let { item ->
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text("Delete file?") },
+            text = { Text("\"${item.fileName}\" will be permanently deleted from your device.") },
+            confirmButton = {
+                TextButton(onClick = { deleteTarget = null; confirmDelete(item) }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Cancel") } }
+        )
+    }
+
+    pendingScanFile?.let { file ->
+        NameDialog(
+            title = "Name your scan",
+            initialName = defaultScanName(),
+            confirmLabel = "Save & open",
+            cancelLabel = "Keep default",
+            onConfirm = {
+                val renamed = renameLocalFile(file, it)
+                pendingScanFile = null
+                openPdf(fileProviderUri(context, renamed))
+            },
+            onCancel = {
+                pendingScanFile = null
+                openPdf(fileProviderUri(context, file))
             }
         )
     }
@@ -749,14 +875,16 @@ internal fun PdfStudioApp(
                     when (currentScreen) {
                         AppScreen.HOME -> HomeScreen(
                             recentFiles = recentFiles,
-                            onOpenPdf = { openPdfLauncher.launch("application/pdf") },
+                            onOpenPdf = { openPdfLauncher.launch(arrayOf("application/pdf")) },
                             onPhotoClick = { pickImageLauncher.launch("image/*") },
                             onScanDoc = { launchDocumentScanner() },
                             onFileTap = ::onFileTap,
                             onSettingsTap = { studioViewModel.currentScreen = AppScreen.SETTINGS },
                             onToggleFavorite = ::onToggleFavorite,
                             onRemove = ::onRemoveRecent,
-                            onShare = ::onShareRecent
+                            onShare = ::onShareRecent,
+                            onRename = ::onRenameRecent,
+                            onDelete = ::onDeleteRecent
                         )
 
                         AppScreen.FILES -> FilesScreen(
@@ -765,6 +893,8 @@ internal fun PdfStudioApp(
                             onToggleFavorite = ::onToggleFavorite,
                             onRemove = ::onRemoveRecent,
                             onShare = ::onShareRecent,
+                            onRename = ::onRenameRecent,
+                            onDelete = ::onDeleteRecent,
                             onClearAll = {
                                 recentFiles = emptyList()
                                 persistRecentFiles(context, emptyList())
@@ -976,4 +1106,36 @@ internal fun PdfStudioApp(
             }
         }
     }
+}
+
+@Composable
+private fun NameDialog(
+    title: String,
+    initialName: String,
+    confirmLabel: String,
+    onConfirm: (String) -> Unit,
+    onCancel: () -> Unit,
+    cancelLabel: String = "Cancel"
+) {
+    var text by remember(initialName) { mutableStateOf(initialName) }
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                singleLine = true,
+                label = { Text("File name") },
+                suffix = { Text(".pdf") }
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(text) },
+                enabled = cleanBaseName(text).isNotBlank()
+            ) { Text(confirmLabel) }
+        },
+        dismissButton = { TextButton(onClick = onCancel) { Text(cancelLabel) } }
+    )
 }

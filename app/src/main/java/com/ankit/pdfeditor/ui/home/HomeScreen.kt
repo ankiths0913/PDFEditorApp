@@ -17,10 +17,12 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ankit.pdfeditor.R
 import com.ankit.pdfeditor.model.*
 import com.ankit.pdfeditor.ui.theme.*
 import com.ankit.pdfeditor.util.*
@@ -49,7 +51,11 @@ private fun DashboardTopBar(
                     .background(Brush.linearGradient(listOf(StudioIndigo600, PdfPrimary))),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Description, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                Image(
+                    painter = painterResource(R.drawable.pdf_editor_logo_foreground),
+                    contentDescription = "PDF Studio",
+                    modifier = Modifier.size(22.dp)
+                )
             }
             Spacer(Modifier.width(10.dp))
             Column {
@@ -229,7 +235,9 @@ internal fun RecentFileCard(
     onTap: () -> Unit,
     onFavoriteToggle: () -> Unit,
     onShare: () -> Unit,
-    onRemove: () -> Unit
+    onRename: () -> Unit,
+    onRemove: () -> Unit,
+    onDelete: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     Card(
@@ -255,7 +263,13 @@ internal fun RecentFileCard(
                 IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "More options", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                     DropdownMenuItem(text = { Text("Share") }, onClick = { menuExpanded = false; onShare() }, leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) })
-                    DropdownMenuItem(text = { Text("Remove from list") }, onClick = { menuExpanded = false; onRemove() }, leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) })
+                    DropdownMenuItem(text = { Text("Rename") }, onClick = { menuExpanded = false; onRename() }, leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) })
+                    DropdownMenuItem(text = { Text("Remove from list") }, onClick = { menuExpanded = false; onRemove() }, leadingIcon = { Icon(Icons.Default.Close, contentDescription = null) })
+                    DropdownMenuItem(
+                        text = { Text("Delete file", color = MaterialTheme.colorScheme.error) },
+                        onClick = { menuExpanded = false; onDelete() },
+                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) }
+                    )
                 }
             }
         }
@@ -283,7 +297,9 @@ internal fun HomeScreen(
     onSettingsTap: () -> Unit,
     onToggleFavorite: (RecentFileItem) -> Unit,
     onRemove: (RecentFileItem) -> Unit,
-    onShare: (RecentFileItem) -> Unit
+    onShare: (RecentFileItem) -> Unit,
+    onRename: (RecentFileItem) -> Unit,
+    onDelete: (RecentFileItem) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var currentSort by remember { mutableStateOf(SortOption.DATE) }
@@ -304,7 +320,7 @@ internal fun HomeScreen(
             item { RecentFilesHeader(filteredFiles.size, currentSort) { currentSort = it } }
             if (filteredFiles.isNotEmpty()) {
                 items(filteredFiles, key = { it.uri }) { file ->
-                    RecentFileCard(file, { onFileTap(file) }, { onToggleFavorite(file) }, { onShare(file) }, { onRemove(file) })
+                    RecentFileCard(file, { onFileTap(file) }, { onToggleFavorite(file) }, { onShare(file) }, { onRename(file) }, { onRemove(file) }, { onDelete(file) })
                 }
             } else if (recentFiles.isEmpty()) item { EmptyFilesMessage("No PDF files yet. Open one from Home to get started!") }
             else item { EmptyFilesMessage("No files match your search.") }

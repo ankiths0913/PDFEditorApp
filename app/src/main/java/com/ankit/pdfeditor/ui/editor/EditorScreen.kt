@@ -448,7 +448,11 @@ private fun EditorBottomBar(
     onRedo: () -> Unit,
     onOpenSignatureCanvas: () -> Unit
 ) {
-    var showShapesMenu by remember { mutableStateOf(false) }
+    val isShapeMode = editorMode == EditorMode.SHAPE_RECT || editorMode == EditorMode.SHAPE_ARROW ||
+        editorMode == EditorMode.SHAPE_LINE || editorMode == EditorMode.UNDERLINE ||
+        editorMode == EditorMode.STRIKETHROUGH
+    val showSettings = editorMode == EditorMode.DRAW || editorMode == EditorMode.HIGHLIGHT ||
+        editorMode == EditorMode.TEXT || isShapeMode
 
     Column(
         modifier = Modifier
@@ -457,16 +461,17 @@ private fun EditorBottomBar(
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        if (editorMode == EditorMode.DRAW || editorMode == EditorMode.HIGHLIGHT || editorMode == EditorMode.TEXT ||
-            editorMode == EditorMode.SHAPE_RECT || editorMode == EditorMode.SHAPE_ARROW || editorMode == EditorMode.SHAPE_LINE
-        ) {
+        if (showSettings) {
             Surface(
                 shape = RoundedCornerShape(18.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 shadowElevation = 8.dp,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
             ) {
-                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     Text(
                         when (editorMode) {
                             EditorMode.HIGHLIGHT -> "Highlighter Settings"
@@ -488,7 +493,31 @@ private fun EditorBottomBar(
                     } else {
                         listOf(Color.Red, Color.Blue, Color.Green, Color.Black, Color.Yellow)
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (isShapeMode) {
+                        Row(
+                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf(
+                                EditorMode.SHAPE_RECT to "Rectangle",
+                                EditorMode.SHAPE_ARROW to "Arrow",
+                                EditorMode.SHAPE_LINE to "Line",
+                                EditorMode.UNDERLINE to "Underline",
+                                EditorMode.STRIKETHROUGH to "Strike"
+                            ).forEach { (mode, label) ->
+                                FilterChip(
+                                    selected = editorMode == mode,
+                                    onClick = { onModeChange(mode) },
+                                    label = { Text(label, maxLines = 1, softWrap = false) }
+                                )
+                            }
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         colors.forEach { color ->
                             val selected = color == currentColor
                             Box(
@@ -503,19 +532,22 @@ private fun EditorBottomBar(
                     }
 
                     if (editorMode == EditorMode.TEXT) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            FilterChip(
-                                selected = textIsBold,
-                                onClick = onTextBoldToggle,
-                                label = { Text("Bold", fontWeight = FontWeight.Bold) }
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text("Background:", style = MaterialTheme.typography.labelMedium)
+                        FilterChip(
+                            selected = textIsBold,
+                            onClick = onTextBoldToggle,
+                            label = { Text("Bold", fontWeight = FontWeight.Bold) }
+                        )
+                        Row(
+                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Background", style = MaterialTheme.typography.labelMedium)
                             listOf(null to "None", Color.Yellow.copy(alpha = 0.4f) to "Yellow", Color.Cyan.copy(alpha = 0.4f) to "Cyan").forEach { (col, lbl) ->
                                 FilterChip(
                                     selected = textBgColor == col,
                                     onClick = { onTextBgColorChange(col) },
-                                    label = { Text(lbl) }
+                                    label = { Text(lbl, maxLines = 1, softWrap = false) }
                                 )
                             }
                         }
@@ -559,76 +591,47 @@ private fun EditorBottomBar(
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    EditorModeButton(Icons.Default.Visibility, "View", editorMode == EditorMode.VIEW) {
+                Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    EditorModeButton(Modifier.weight(1f), Icons.Default.Visibility, "View", editorMode == EditorMode.VIEW) {
                         onModeChange(EditorMode.VIEW)
                     }
-                    EditorModeButton(Icons.Default.Edit, "Draw", editorMode == EditorMode.DRAW) {
+                    EditorModeButton(Modifier.weight(1f), Icons.Default.Edit, "Draw", editorMode == EditorMode.DRAW) {
                         onModeChange(EditorMode.DRAW); onColorChange(Color.Red); onWidthChange(8f)
                     }
-                    EditorModeButton(Icons.Default.Highlight, "Mark", editorMode == EditorMode.HIGHLIGHT) {
+                    EditorModeButton(Modifier.weight(1f), Icons.Default.Highlight, "Mark", editorMode == EditorMode.HIGHLIGHT) {
                         onModeChange(EditorMode.HIGHLIGHT); onColorChange(Color.Yellow.copy(alpha = DEFAULT_HIGHLIGHT_ALPHA)); onWidthChange(28f)
                     }
-                    Box {
-                        EditorModeButton(
-                            Icons.Default.Category,
-                            "Shapes",
-                            editorMode == EditorMode.SHAPE_RECT || editorMode == EditorMode.SHAPE_ARROW || editorMode == EditorMode.SHAPE_LINE
-                        ) {
-                            showShapesMenu = true
-                        }
-                        DropdownMenu(expanded = showShapesMenu, onDismissRequest = { showShapesMenu = false }) {
-                            DropdownMenuItem(
-                                text = { Text("Rectangle") },
-                                onClick = { onModeChange(EditorMode.SHAPE_RECT); showShapesMenu = false }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Arrow") },
-                                onClick = { onModeChange(EditorMode.SHAPE_ARROW); showShapesMenu = false }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Line") },
-                                onClick = { onModeChange(EditorMode.SHAPE_LINE); showShapesMenu = false }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Underline") },
-                                onClick = { onModeChange(EditorMode.UNDERLINE); showShapesMenu = false }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Strikethrough") },
-                                onClick = { onModeChange(EditorMode.STRIKETHROUGH); showShapesMenu = false }
-                            )
+                    EditorModeButton(Modifier.weight(1f), Icons.Default.Category, "Shapes", isShapeMode) {
+                        if (!isShapeMode) {
+                            onModeChange(EditorMode.SHAPE_RECT); onColorChange(Color.Red); onWidthChange(4f)
                         }
                     }
-                    EditorModeButton(Icons.Default.TextFields, "Text", editorMode == EditorMode.TEXT) {
+                    EditorModeButton(Modifier.weight(1f), Icons.Default.TextFields, "Text", editorMode == EditorMode.TEXT) {
+                        if (editorMode != EditorMode.TEXT) onColorChange(Color.Black)
                         onModeChange(EditorMode.TEXT)
                     }
-                    EditorModeButton(Icons.Default.Draw, "Sign", editorMode == EditorMode.SIGNATURE) {
+                    EditorModeButton(Modifier.weight(1f), Icons.Default.Draw, "Sign", editorMode == EditorMode.SIGNATURE) {
                         onOpenSignatureCanvas()
                     }
-                    EditorModeButton(Icons.Default.Delete, "Erase", editorMode == EditorMode.ERASE) {
+                    EditorModeButton(Modifier.weight(1f), Icons.Default.Delete, "Erase", editorMode == EditorMode.ERASE) {
                         onModeChange(EditorMode.ERASE)
                     }
                 }
                 Box(
                     modifier = Modifier
+                        .padding(horizontal = 2.dp)
                         .width(1.dp)
                         .height(28.dp)
                         .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                 )
-                Row {
-                    IconButton(onClick = onUndo, enabled = canUndo) {
-                        Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo", tint = if (canUndo) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.size(18.dp))
-                    }
-                    IconButton(onClick = onRedo, enabled = canRedo) {
-                        Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = "Redo", tint = if (canRedo) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.size(18.dp))
-                    }
+                IconButton(onClick = onUndo, enabled = canUndo, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo", tint = if (canUndo) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.size(18.dp))
+                }
+                IconButton(onClick = onRedo, enabled = canRedo, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = "Redo", tint = if (canRedo) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.size(18.dp))
                 }
             }
         }
@@ -637,14 +640,14 @@ private fun EditorBottomBar(
 
 @Composable
 private fun EditorModeButton(
+    modifier: Modifier = Modifier,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
     Column(
-        modifier = Modifier
-            .width(46.dp)
+        modifier = modifier
             .clip(RoundedCornerShape(12.dp))
             .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
             .clickable(onClick = onClick)
