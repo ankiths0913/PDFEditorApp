@@ -17,7 +17,7 @@ internal const val RECENT_FILES_KEY = "recent_files"
 internal const val FILE_PROVIDER_SUFFIX = ".fileprovider"
 internal const val MAX_RECENT_FILES = 20
 internal const val MAX_EXPORT_RENDER_DIMENSION = 2048
-internal const val MAX_DISPLAY_RENDER_DIMENSION = 1600
+internal const val MAX_DISPLAY_RENDER_DIMENSION = 4096
 internal const val DEFAULT_HIGHLIGHT_ALPHA = 0.7f
 
 internal fun appDocumentsDir(context: Context): File =

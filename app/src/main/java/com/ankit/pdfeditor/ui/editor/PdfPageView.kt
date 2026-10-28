@@ -34,6 +34,10 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlin.math.sqrt
+
+private const val RENDER_QUALITY = 2f
+private const val MAX_DISPLAY_PIXELS = 8_000_000f
 
 @Composable
 internal fun PdfViewerWithSwipe(
@@ -210,9 +214,15 @@ private fun PdfPage(
             val result = rendererMutex.withLock {
                 withContext(Dispatchers.IO) {
                     renderer.openPage(pageIndex).use { page ->
-                        val scale = minOf(
-                            1f,
+                        val screenWidthPx = context.resources.displayMetrics.widthPixels
+                        var scale = (screenWidthPx * RENDER_QUALITY) / page.width.toFloat()
+                        scale = minOf(
+                            scale,
                             MAX_DISPLAY_RENDER_DIMENSION.toFloat() / maxOf(page.width, page.height).toFloat()
+                        )
+                        scale = minOf(
+                            scale,
+                            sqrt(MAX_DISPLAY_PIXELS / (page.width.toFloat() * page.height))
                         )
                         val width = (page.width * scale).toInt().coerceAtLeast(1)
                         val height = (page.height * scale).toInt().coerceAtLeast(1)
@@ -331,6 +341,7 @@ private fun PdfPage(
                         contentDescription = "Page ${pageIndex + 1}",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.FillBounds,
+                        filterQuality = FilterQuality.High,
                         colorFilter = filter
                     )
 
