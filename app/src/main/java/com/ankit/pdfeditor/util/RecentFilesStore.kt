@@ -27,6 +27,7 @@ internal fun recentFilesJson(items: List<RecentFileItem>): String = JSONArray().
             put("fileSizeBytes", item.fileSizeBytes)
             put("timestamp", item.timestamp)
             put("isFavorite", item.isFavorite)
+            put("lastPage", item.lastPage)
         })
     }
 }.toString()
@@ -43,7 +44,8 @@ internal fun recentFilesFromJson(raw: String): List<RecentFileItem> {
                     openedAt = obj.optString("openedAt", ""),
                     fileSizeBytes = obj.optLong("fileSizeBytes", -1L),
                     timestamp = obj.optLong("timestamp", System.currentTimeMillis()),
-                    isFavorite = obj.optBoolean("isFavorite", false)
+                    isFavorite = obj.optBoolean("isFavorite", false),
+                    lastPage = obj.optInt("lastPage", 0)
                 )
             )
         }

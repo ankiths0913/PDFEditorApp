@@ -64,7 +64,11 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation("androidx.biometric:biometric:1.2.0-alpha05")
+    implementation("androidx.work:work-runtime-ktx:2.12.0")
     implementation(libs.pdfbox.android)
+    implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0")
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.2")
 
     testImplementation(libs.junit)
     testImplementation("org.json:json:20231013")

@@ -1,207 +1,65 @@
 package com.ankit.pdfeditor.ui
 
-import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
-import android.os.Bundle
-import android.provider.OpenableColumns
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.DocumentScanner
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.Highlight
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PictureAsPdf
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.TextFields
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
-import androidx.core.content.edit
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ankit.pdfeditor.model.*
+import com.ankit.pdfeditor.ui.editor.EditorScreen
 import com.ankit.pdfeditor.ui.files.FilesScreen
 import com.ankit.pdfeditor.ui.home.HomeScreen
-import com.ankit.pdfeditor.ui.editor.EditorScreen
 import com.ankit.pdfeditor.ui.nav.BottomNavBar
 import com.ankit.pdfeditor.ui.settings.SettingsScreen
 import com.ankit.pdfeditor.ui.theme.PDFEditorAppTheme
-import com.ankit.pdfeditor.util.*
 import com.ankit.pdfeditor.ui.tools.ToolsScreen
-import com.ankit.pdfeditor.ui.theme.StudioAmber400
-import com.ankit.pdfeditor.ui.theme.StudioBlue50
-import com.ankit.pdfeditor.ui.theme.StudioBlue500
-import com.ankit.pdfeditor.ui.theme.StudioBlue600
-import com.ankit.pdfeditor.ui.theme.StudioEmerald500
-import com.ankit.pdfeditor.ui.theme.StudioIndigo50
-import com.ankit.pdfeditor.ui.theme.StudioIndigo600
-import com.ankit.pdfeditor.ui.theme.StudioRed100
-import com.ankit.pdfeditor.ui.theme.StudioRed50
-import com.ankit.pdfeditor.ui.theme.StudioRed500
-import com.ankit.pdfeditor.ui.theme.StudioSky50
-import com.ankit.pdfeditor.ui.theme.StudioSky600
-import com.ankit.pdfeditor.ui.theme.StudioSlate100
-import com.ankit.pdfeditor.ui.theme.StudioSlate200
-import com.ankit.pdfeditor.ui.theme.StudioSlate400
-import com.ankit.pdfeditor.ui.theme.StudioSlate50
-import com.ankit.pdfeditor.ui.theme.StudioSlate500
-import com.ankit.pdfeditor.ui.theme.StudioSlate600
-import com.ankit.pdfeditor.ui.theme.StudioSlate700
-import com.ankit.pdfeditor.ui.theme.StudioSlate800
-import com.ankit.pdfeditor.ui.theme.StudioSlate900
-import com.ankit.pdfeditor.ui.theme.StudioViolet50
-import com.ankit.pdfeditor.ui.theme.StudioViolet600
+import com.ankit.pdfeditor.util.*
+import com.tom_roush.pdfbox.io.MemoryUsageSetting
+import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
+import com.tom_roush.pdfbox.pdmodel.font.PDType0Font
+import com.tom_roush.pdfbox.pdmodel.graphics.blend.BlendMode
+import com.tom_roush.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState
+import com.tom_roush.pdfbox.util.Matrix
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import com.tom_roush.pdfbox.pdmodel.PDDocument
-import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
-import com.tom_roush.pdfbox.pdmodel.font.PDType0Font
-import com.tom_roush.pdfbox.pdmodel.graphics.blend.BlendMode
-import com.tom_roush.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState
-import com.tom_roush.pdfbox.io.MemoryUsageSetting
-import com.tom_roush.pdfbox.util.Matrix
 import java.io.File
 import java.io.IOException
 import java.io.OutputStream
-import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.time.Duration.Companion.milliseconds
-
-private const val DARK_THEME_KEY = "dark_theme"
-private const val MAX_UNDO_HISTORY = 50
-// Brand primary color used throughout the UI (matches the indigo accent used
-// by the theme module). Declared locally so this file doesn't need an extra
-// import just for a single accent color.
-private val PdfPrimary = Color(0xFF6366F1)
-private typealias AnnotationAction = StudioViewModel.AnnotationAction
 
 private suspend fun writeAnnotatedPdf(
     context: Context,
     sourceUri: Uri,
     strokesByPage: Map<Int, List<PdfStroke>>,
     textsByPage: Map<Int, List<PdfText>>,
+    shapesByPage: Map<Int, List<PdfShape>>,
+    signaturesByPage: Map<Int, List<PdfSignature>>,
     outputStream: OutputStream
 ): Int = withContext(Dispatchers.IO) {
     var skippedAnnotations = 0
@@ -266,6 +124,75 @@ private suspend fun writeAnnotatedPdf(
                             skippedAnnotations++
                         }
                     }
+
+                    shapesByPage[pageIndex].orEmpty().forEach { shape ->
+                        try {
+                            val color = shape.color.toAndroidColor()
+                            val startMapped = mapNormalizedPointToPdf(shape.start, geometry)
+                            val endMapped = mapNormalizedPointToPdf(shape.end, geometry)
+                            content.saveGraphicsState()
+                            try {
+                                content.setStrokingColor(
+                                    android.graphics.Color.red(color),
+                                    android.graphics.Color.green(color),
+                                    android.graphics.Color.blue(color)
+                                )
+                                content.setLineWidth(shape.widthFraction * pageMin)
+                                when (shape.type) {
+                                    ShapeType.RECTANGLE -> {
+                                        val left = minOf(startMapped.x, endMapped.x)
+                                        val bottom = minOf(startMapped.y, endMapped.y)
+                                        val w = kotlin.math.abs(endMapped.x - startMapped.x)
+                                        val h = kotlin.math.abs(endMapped.y - startMapped.y)
+                                        content.addRect(left, bottom, w, h)
+                                        content.stroke()
+                                    }
+                                    else -> {
+                                        content.moveTo(startMapped.x, startMapped.y)
+                                        content.lineTo(endMapped.x, endMapped.y)
+                                        content.stroke()
+                                    }
+                                }
+                            } finally {
+                                content.restoreGraphicsState()
+                            }
+                        } catch (_: Exception) {
+                            skippedAnnotations++
+                        }
+                    }
+
+                    signaturesByPage[pageIndex].orEmpty().forEach { sig ->
+                        try {
+                            val color = sig.color.toAndroidColor()
+                            val originMapped = mapNormalizedPointToPdf(sig.position, geometry)
+                            val sigWidthPdf = sig.size.x * geometry.width
+                            val sigHeightPdf = sig.size.y * geometry.height
+                            content.saveGraphicsState()
+                            try {
+                                content.setStrokingColor(
+                                    android.graphics.Color.red(color),
+                                    android.graphics.Color.green(color),
+                                    android.graphics.Color.blue(color)
+                                )
+                                content.setLineWidth(2f)
+                                sig.strokes.forEach { strokePts ->
+                                    if (strokePts.isNotEmpty()) {
+                                        val p0 = strokePts.first()
+                                        content.moveTo(originMapped.x + p0.x * sigWidthPdf, originMapped.y - p0.y * sigHeightPdf)
+                                        strokePts.drop(1).forEach { pt ->
+                                            content.lineTo(originMapped.x + pt.x * sigWidthPdf, originMapped.y - pt.y * sigHeightPdf)
+                                        }
+                                        content.stroke()
+                                    }
+                                }
+                            } finally {
+                                content.restoreGraphicsState()
+                            }
+                        } catch (_: Exception) {
+                            skippedAnnotations++
+                        }
+                    }
+
                     textsByPage[pageIndex].orEmpty().forEach { text ->
                         try {
                             val origin = mapNormalizedPointToPdf(text.position, geometry)
@@ -277,7 +204,6 @@ private suspend fun writeAnnotatedPdf(
                                 splitLineToExportRuns(line, latinFont, devanagariFont)
                             }
 
-                            // Validate before drawing so it throws before beginText() or graphics state changes
                             lineRuns.forEach { runs ->
                                 runs.forEach { run ->
                                     run.font.encode(run.text)
@@ -386,60 +312,40 @@ private fun canEncode(font: PDType0Font, text: String): Boolean {
 }
 
 @Composable
-internal fun PdfStudioApp() {
+internal fun PdfStudioApp(initialUri: Uri? = null) {
     val context = LocalContext.current
+    val activity = context as? FragmentActivity
     val studioViewModel: StudioViewModel = viewModel()
     val scope = rememberCoroutineScope()
     val rendererMutex = remember { Mutex() }
     val prefs = remember { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }
-    var isDarkTheme by remember { mutableStateOf(prefs.getBoolean(DARK_THEME_KEY, false)) }
-    val currentScreen = studioViewModel.currentScreen
-    var pdfUri by remember { mutableStateOf<Uri?>(null) }
+
+    var themeMode by remember {
+        mutableStateOf(
+            runCatching { ThemeMode.valueOf(prefs.getString("theme_mode", "SYSTEM") ?: "SYSTEM") }.getOrDefault(ThemeMode.SYSTEM)
+        )
+    }
+    var dynamicColor by remember { mutableStateOf(prefs.getBoolean("dynamic_color", false)) }
+    var appLockEnabled by remember { mutableStateOf(prefs.getBoolean("app_lock_enabled", false)) }
+    var pageColorFilter by remember {
+        mutableStateOf(
+            runCatching { PageColorFilter.valueOf(prefs.getString("page_color_filter", "NORMAL") ?: "NORMAL") }.getOrDefault(PageColorFilter.NORMAL)
+        )
+    }
+
+    var isUnlocked by remember { mutableStateOf(!appLockEnabled) }
+
     var renderer by remember { mutableStateOf<PdfRenderer?>(null) }
     var pageCount by remember { mutableIntStateOf(0) }
-    val currentPage = studioViewModel.currentPage
-    val zoomLevel = studioViewModel.zoomLevel
     var isBusy by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    val hasUnsavedChanges = studioViewModel.hasUnsavedChanges
     var showUnsavedDialog by remember { mutableStateOf(false) }
+    var showSaveOverwriteDialog by remember { mutableStateOf(false) }
+    var passwordPromptUri by remember { mutableStateOf<Uri?>(null) }
+    var passwordPromptText by remember { mutableStateOf("") }
 
-    val editorMode = studioViewModel.editorMode
-    val currentColor = studioViewModel.currentColor
-    val strokeWidth = studioViewModel.strokeWidth
-
-    var recentFiles by remember { mutableStateOf(loadRecentFiles(context)) }
-    LaunchedEffect(Unit) {
-        val valid = withContext(Dispatchers.IO) {
-            cleanupGeneratedFiles(context, recentFiles)
-        }
-        if (valid.size != recentFiles.size) {
-            recentFiles = valid
-            persistRecentFiles(context, valid)
-        }
-    }
-    val pageStrokes = studioViewModel.pageStrokes
-    val pageTexts = studioViewModel.pageTexts
-    val annotationHistory = studioViewModel.annotationHistory
-
-    fun clearAnnotations() {
-        studioViewModel.clearAnnotations(studioViewModel.pdfUri, deletePersisted = true)
-        annotationHistory.clear()
-        studioViewModel.hasUnsavedChanges = false
-    }
-
-    fun setChanged() {
-        studioViewModel.hasUnsavedChanges =
-            pageStrokes.values.any { it.isNotEmpty() } ||
-                    pageTexts.values.any { it.isNotEmpty() }
-    }
-
-    fun pushHistory(action: AnnotationAction) {
-        annotationHistory.add(action)
-        if (annotationHistory.size > MAX_UNDO_HISTORY) {
-            annotationHistory.removeAt(0)
-        }
-    }
+    val recentFilesState = remember { mutableStateOf(loadRecentFiles(context)) }
+    var recentFiles by recentFilesState
 
     suspend fun addRecent(uri: Uri, fileName: String) {
         val resolvedSize = withContext(Dispatchers.IO) {
@@ -452,7 +358,8 @@ internal fun PdfStudioApp() {
             openedAt = dateString(),
             fileSizeBytes = resolvedSize,
             timestamp = System.currentTimeMillis(),
-            isFavorite = recentFiles.firstOrNull { it.uri == uri.toString() }?.isFavorite == true
+            isFavorite = recentFiles.firstOrNull { it.uri == uri.toString() }?.isFavorite == true,
+            lastPage = studioViewModel.currentPage
         )
 
         recentFiles = (listOf(updated) + recentFiles.filterNot { it.uri == updated.uri })
@@ -502,10 +409,11 @@ internal fun PdfStudioApp() {
             val previousUri = studioViewModel.pdfUri
             val sameDocument = previousUri == uri.toString()
             studioViewModel.pdfUri = uri.toString()
-            pdfUri = uri
+            studioViewModel.pdfUri?.let { _ -> }
             if (!sameDocument) {
                 studioViewModel.clearAnnotations(previousUri, deletePersisted = false)
-                studioViewModel.currentPage = 0
+                val savedItem = recentFiles.firstOrNull { it.uri == uri.toString() }
+                studioViewModel.currentPage = savedItem?.lastPage?.coerceIn(0, (newPageCount - 1).coerceAtLeast(0)) ?: 0
                 studioViewModel.zoomLevel = 1f
                 studioViewModel.editorMode = EditorMode.VIEW
                 studioViewModel.hasUnsavedChanges = false
@@ -540,157 +448,191 @@ internal fun PdfStudioApp() {
             try {
                 loadPdf(uri, fileNameOverride)
             } catch (e: Exception) {
-                errorMessage = e.message ?: "Could not open PDF"
+                if (e is SecurityException || e.message?.contains("encrypted", ignoreCase = true) == true || e.message?.contains("password", ignoreCase = true) == true) {
+                    passwordPromptUri = uri
+                    passwordPromptText = ""
+                } else {
+                    errorMessage = e.message ?: "Could not open PDF"
+                }
             } finally {
                 isBusy = false
             }
-
         }
     }
+
+    LaunchedEffect(appLockEnabled) {
+        if (appLockEnabled && !isUnlocked && activity != null) {
+            showBiometricPrompt(
+                activity = activity,
+                onSuccess = { isUnlocked = true },
+                onError = { /* handle error */ }
+            )
+        }
+    }
+
+    LaunchedEffect(initialUri) {
+        if (initialUri != null && isReadableUri(context, initialUri)) {
+            openPdf(initialUri)
+        }
+    }
+
+    val currentScreen = studioViewModel.currentScreen
+    val currentPage = studioViewModel.currentPage
+    val zoomLevel = studioViewModel.zoomLevel
+    val hasUnsavedChanges = studioViewModel.hasUnsavedChanges
+
+    val editorMode = studioViewModel.editorMode
+    val currentColor = studioViewModel.currentColor
+    val strokeWidth = studioViewModel.strokeWidth
 
     LaunchedEffect(Unit) {
-        studioViewModel.pdfUri?.let { savedUri ->
-            if (studioViewModel.currentScreen == AppScreen.EDITOR && renderer == null) {
-                openPdf(Uri.parse(savedUri))
-            }
+        val valid = withContext(Dispatchers.IO) {
+            cleanupGeneratedFiles(context, recentFiles)
+        }
+        if (valid.size != recentFiles.size) {
+            recentFiles = valid
+            persistRecentFiles(context, valid)
+        }
+    }
+    val pageStrokes = studioViewModel.pageStrokes
+    val pageTexts = studioViewModel.pageTexts
+    val pageShapes = studioViewModel.pageShapes
+    val pageSignatures = studioViewModel.pageSignatures
+
+    val openPdfLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            openPdf(uri)
         }
     }
 
-    val filePicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        uri ?: return@rememberLauncherForActivityResult
-        try {
-            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-            context.contentResolver.takePersistableUriPermission(uri, flags)
-        } catch (_: SecurityException) {
-            try {
-                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (_: Exception) {
-            }
-        }
-        openPdf(uri)
-    }
-
-    val photoPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri: Uri? ->
-        uri ?: return@rememberLauncherForActivityResult
-        scope.launch {
-            isBusy = true
-            errorMessage = null
-            try {
-                val generated = withContext(Dispatchers.IO) {
-                    convertImageToPdfOnDevice(context, uri)
-                } ?: throw IOException("Could not convert the selected image to PDF")
-                loadPdf(fileProviderUri(context, generated), generated.name)
-            } catch (e: Exception) {
-                errorMessage = e.message ?: "Could not import image"
-            } finally {
+    val pickImageLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                isBusy = true
+                val converted = convertImageToPdfOnDevice(context, uri)
                 isBusy = false
+                if (converted != null) {
+                    openPdf(fileProviderUri(context, converted))
+                } else {
+                    errorMessage = "Could not convert image to PDF"
+                }
             }
         }
     }
 
-    // "Scan Doc" / Camera import: capture a photo, then reuse the same
-    // image -> PDF conversion path as the Photos picker above.
-    var pendingScanFile by remember { mutableStateOf<File?>(null) }
-    var pendingScanUri by remember { mutableStateOf<Uri?>(null) }
-
-    fun handleScanCaptureResult(success: Boolean) {
-        val capturedFile = pendingScanFile
-        val capturedUri = pendingScanUri
-        pendingScanFile = null
-        pendingScanUri = null
-        if (!success || capturedFile == null || capturedUri == null) {
-            if (capturedFile?.exists() == true) capturedFile.delete()
-            return
-        }
-        scope.launch {
-            isBusy = true
-            errorMessage = null
-            try {
-                val generated = withContext(Dispatchers.IO) {
-                    convertImageToPdfOnDevice(context, capturedUri)
-                } ?: throw IOException("Could not convert the scanned photo to PDF")
-                withContext(Dispatchers.IO) { capturedFile.delete() }
-                loadPdf(fileProviderUri(context, generated), generated.name)
-            } catch (e: Exception) {
-                errorMessage = e.message ?: "Could not process the scanned document"
-            } finally {
-                isBusy = false
-            }
-        }
-    }
-
-    val scanCameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture()
-    ) { success -> handleScanCaptureResult(success) }
-
-    fun startScanCapture() {
-        val file = File(appDocumentsDir(context), "Scan_${System.currentTimeMillis()}.jpg")
-        val uri = fileProviderUri(context, file)
-        pendingScanFile = file
-        pendingScanUri = uri
-        scanCameraLauncher.launch(uri)
-    }
-
-    val scanCameraPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) {
-            startScanCapture()
-        } else {
-            errorMessage = "Camera permission is required to scan documents."
-        }
-    }
-
-    fun launchScanDoc() {
-        val hasPermission = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.CAMERA
-        ) == PackageManager.PERMISSION_GRANTED
-        if (hasPermission) {
-            startScanCapture()
-        } else {
-            scanCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-        }
-    }
-
-    val saveLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/pdf")
-    ) { uri: Uri? ->
-        uri ?: return@rememberLauncherForActivityResult
-        renderer ?: return@rememberLauncherForActivityResult
-        val activeUri = pdfUri ?: return@rememberLauncherForActivityResult
-        val strokesSnapshot = pageStrokes.mapValues { it.value.toList() }
-        val textsSnapshot = pageTexts.mapValues { it.value.toList() }
-        scope.launch {
-            isBusy = true
-            errorMessage = null
-            try {
-                val output = context.contentResolver.openOutputStream(uri)
-                    ?: throw IOException("Unable to create the destination PDF")
-                output.use {
-                    val skipped = writeAnnotatedPdf(
-                        context = context,
-                        sourceUri = activeUri,
-                        strokesByPage = strokesSnapshot,
-                        textsByPage = textsSnapshot,
-                        outputStream = it
-                    )
-                    if (skipped > 0) {
-                        errorMessage = "$skipped annotation(s) could not be exported."
+    val documentScannerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val scanResult = parseScannerResult(result.data)
+            if (scanResult != null) {
+                val pdf = scanResult.pdf
+                if (pdf != null) {
+                    openPdf(pdf.uri)
+                } else {
+                    val pages = scanResult.pages
+                    val pageUris = pages?.mapNotNull { it.imageUri } ?: emptyList()
+                    if (pageUris.isNotEmpty()) {
+                        scope.launch {
+                            isBusy = true
+                            val ocrPdf = generateSearchablePdfFromImages(context, pageUris)
+                            isBusy = false
+                            if (ocrPdf != null) {
+                                openPdf(fileProviderUri(context, ocrPdf))
+                            } else {
+                                errorMessage = "Failed to generate searchable PDF from scanned pages."
+                            }
+                        }
                     }
                 }
-                try {
-                    context.contentResolver.takePersistableUriPermission(
-                        uri,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            }
+        }
+    }
+
+    fun launchDocumentScanner() {
+        val activity = context as? ComponentActivity ?: return
+        val client = getDocumentScannerClient(activity)
+        client.getStartScanIntent(activity)
+            .addOnSuccessListener { intentSender ->
+                documentScannerLauncher.launch(IntentSenderRequest.Builder(intentSender).build())
+            }
+            .addOnFailureListener { e ->
+                errorMessage = e.message ?: "Failed to start document scanner."
+            }
+    }
+
+    fun onShareRecent(item: RecentFileItem) {
+        runCatching {
+            sharePdf(context, Uri.parse(item.uri))
+        }.onFailure { e ->
+            errorMessage = e.message ?: "Could not share PDF"
+        }
+    }
+
+    fun onToggleFavorite(item: RecentFileItem) {
+        recentFiles = recentFiles.map {
+            if (it.uri == item.uri) it.copy(isFavorite = !it.isFavorite) else it
+        }
+        persistRecentFiles(context, recentFiles)
+    }
+
+    fun onRemoveRecent(item: RecentFileItem) {
+        recentFiles = recentFiles.filterNot { it.uri == item.uri }
+        persistRecentFiles(context, recentFiles)
+        if (studioViewModel.pdfUri == item.uri) {
+            studioViewModel.clearAnnotations(item.uri, deletePersisted = true)
+        }
+    }
+
+    fun onFileTap(item: RecentFileItem) {
+        val uri = Uri.parse(item.uri)
+        if (isReadableUri(context, uri)) {
+            openPdf(uri, item.fileName)
+        } else {
+            onRemoveRecent(item)
+            errorMessage = "File no longer available"
+        }
+    }
+
+    fun saveEditedPdf(overwrite: Boolean) {
+        val currentUri = studioViewModel.pdfUri?.let { Uri.parse(it) } ?: return
+        scope.launch {
+            isBusy = true
+            errorMessage = null
+            try {
+                val documentFile = if (overwrite && currentUri.scheme == "file") {
+                    File(currentUri.path.orEmpty())
+                } else {
+                    File(
+                        appDocumentsDir(context),
+                        "Annotated_${safeFileName(resolveFileName(context, currentUri))}"
                     )
-                } catch (_: Exception) {
                 }
-                loadPdf(uri, resolveFileName(context, uri))
+
+                val skipped = withContext(Dispatchers.IO) {
+                    documentFile.outputStream().use { stream ->
+                        writeAnnotatedPdf(
+                            context = context,
+                            sourceUri = currentUri,
+                            strokesByPage = pageStrokes,
+                            textsByPage = pageTexts,
+                            shapesByPage = pageShapes,
+                            signaturesByPage = pageSignatures,
+                            outputStream = stream
+                        )
+                    }
+                }
+
+                val savedUri = fileProviderUri(context, documentFile)
+                loadPdf(savedUri, documentFile.name)
+                studioViewModel.clearAnnotations(currentUri.toString(), deletePersisted = true)
+                if (skipped > 0) {
+                    errorMessage = "$skipped annotation(s) could not be exported."
+                }
             } catch (e: Exception) {
                 errorMessage = e.message ?: "Could not save PDF"
             } finally {
@@ -699,7 +641,7 @@ internal fun PdfStudioApp() {
         }
     }
 
-    fun requestBack() {
+    fun confirmBackNavigation() {
         if (hasUnsavedChanges) {
             showUnsavedDialog = true
         } else {
@@ -707,278 +649,317 @@ internal fun PdfStudioApp() {
         }
     }
 
-    BackHandler(enabled = currentScreen != AppScreen.HOME) {
-        if (currentScreen == AppScreen.EDITOR) {
-            requestBack()
-        } else {
-            studioViewModel.currentScreen = AppScreen.HOME
-        }
+    BackHandler(enabled = currentScreen == AppScreen.EDITOR) {
+        confirmBackNavigation()
     }
 
-    val latestRenderer by rememberUpdatedState(renderer)
-    DisposableEffect(Unit) {
-        onDispose {
-            try {
-                latestRenderer?.close()
-            } catch (_: IllegalStateException) {
+    if (showUnsavedDialog) {
+        AlertDialog(
+            onDismissRequest = { showUnsavedDialog = false },
+            title = { Text("Unsaved changes") },
+            text = { Text("You have unsaved annotations. Save your changes before leaving?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showUnsavedDialog = false
+                    showSaveOverwriteDialog = true
+                }) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showUnsavedDialog = false
+                    studioViewModel.clearAnnotations(studioViewModel.pdfUri, deletePersisted = true)
+                    studioViewModel.currentScreen = AppScreen.HOME
+                }) { Text("Discard") }
             }
-        }
+        )
     }
 
-    PDFEditorAppTheme(darkTheme = isDarkTheme) {
-        val onOpenPdf: () -> Unit = { filePicker.launch(arrayOf("application/pdf")) }
-        val onPhotoClick: () -> Unit = {
-            photoPicker.launch(
-                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-            )
-        }
-        val onScanDoc: () -> Unit = { launchScanDoc() }
-        val onFileTap: (Uri) -> Unit = { selectedUri ->
-            if (isReadableUri(context, selectedUri)) {
-                openPdf(selectedUri)
-            } else {
-                recentFiles = recentFiles.filterNot { it.uri == selectedUri.toString() }
-                persistRecentFiles(context, recentFiles)
-                errorMessage = "File no longer available"
+    if (showSaveOverwriteDialog) {
+        AlertDialog(
+            onDismissRequest = { showSaveOverwriteDialog = false },
+            title = { Text("Save PDF") },
+            text = { Text("Do you want to overwrite the original file or save as a new copy?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showSaveOverwriteDialog = false
+                    saveEditedPdf(overwrite = true)
+                }) { Text("Overwrite") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showSaveOverwriteDialog = false
+                    saveEditedPdf(overwrite = false)
+                }) { Text("Save as Copy") }
             }
-        }
-        val onToggleFavorite: (RecentFileItem) -> Unit = { fileItem ->
-            recentFiles = recentFiles.map {
-                if (it.uri == fileItem.uri) it.copy(isFavorite = !it.isFavorite) else it
-            }
-            persistRecentFiles(context, recentFiles)
-        }
-        val onRemoveRecent: (RecentFileItem) -> Unit = { fileItem ->
-            recentFiles = recentFiles.filterNot { it.uri == fileItem.uri }
-            persistRecentFiles(context, recentFiles)
-        }
-        val onShareRecent: (RecentFileItem) -> Unit = { fileItem ->
-            try {
-                sharePdf(context, Uri.parse(fileItem.uri))
-            } catch (e: Exception) {
-                errorMessage = e.message ?: "Could not share PDF"
-            }
-        }
+        )
+    }
 
-        when (currentScreen) {
-            AppScreen.HOME -> HomeScreen(
-                recentFiles = recentFiles,
-                onOpenPdf = onOpenPdf,
-                onPhotoClick = onPhotoClick,
-                onScanDoc = onScanDoc,
-                onFileTap = onFileTap,
-                onSettingsTap = { studioViewModel.currentScreen = AppScreen.SETTINGS },
-                onToggleFavorite = onToggleFavorite,
-                onRemove = onRemoveRecent,
-                onShare = onShareRecent
-            )
-
-            AppScreen.FILES -> FilesScreen(
-                recentFiles = recentFiles,
-                onFileTap = onFileTap,
-                onToggleFavorite = onToggleFavorite,
-                onRemove = onRemoveRecent,
-                onShare = onShareRecent
-            )
-
-            AppScreen.TOOLS -> ToolsScreen()
-
-            AppScreen.EDITOR -> {
-                val activeRenderer = renderer
-                val activeUri = pdfUri
-                if (activeRenderer != null && activeUri != null && pageCount > 0) {
-                    // The editor is always dark, independent of the app-wide theme
-                    // toggle in Settings — an immersive dark canvas is the intended
-                    // design for annotating, similar to most PDF/photo editors.
-                    PDFEditorAppTheme(darkTheme = true) {
-                        EditorScreen(
-                            renderer = activeRenderer,
-                            pdfUri = activeUri,
-                            currentPage = currentPage,
-                            pageCount = pageCount,
-                            zoomLevel = zoomLevel,
-                            editorMode = editorMode,
-                            currentColor = currentColor,
-                            strokeWidth = strokeWidth,
-                            pageStrokes = pageStrokes,
-                            pageTexts = pageTexts,
-                            rendererMutex = rendererMutex,
-                            isBusy = isBusy,
-                            hasUnsavedChanges = hasUnsavedChanges,
-                            hasUndoHistory = annotationHistory.isNotEmpty(),
-                            onPageChange = { studioViewModel.currentPage = it.coerceIn(0, pageCount - 1) },
-                            onZoomChange = { studioViewModel.zoomLevel = it.coerceIn(1f, 3f) },
-                            onModeChange = { studioViewModel.editorMode = it },
-                            onColorChange = { studioViewModel.currentColor = it },
-                            onWidthChange = { studioViewModel.strokeWidth = it },
-                            onStrokeAdded = { pageIdx, stroke ->
-                                pageStrokes[pageIdx] = pageStrokes[pageIdx].orEmpty() + stroke
-                                studioViewModel.schedulePersistAnnotations(studioViewModel.pdfUri)
-                                pushHistory(StudioViewModel.AnnotationAction.StrokeAdded(pageIdx, stroke))
-                                setChanged()
-                            },
-                            onTextAdded = { pageIdx, text ->
-                                pageTexts[pageIdx] = pageTexts[pageIdx].orEmpty() + text
-                                studioViewModel.schedulePersistAnnotations(studioViewModel.pdfUri)
-                                pushHistory(StudioViewModel.AnnotationAction.TextAdded(pageIdx, text))
-                                setChanged()
-                            },
-                            onEraseAt = { pageIdx, point ->
-                                val strokes = pageStrokes[pageIdx].orEmpty()
-                                val texts = pageTexts[pageIdx].orEmpty()
-                                val nearestStroke = strokes.minByOrNull { strokeDistance(point, it) }
-                                val nearestStrokeDistance = nearestStroke?.let { strokeDistance(point, it) } ?: Float.MAX_VALUE
-                                val nearestText = texts.minByOrNull { hypot(point.x - it.position.x, point.y - it.position.y) }
-                                val nearestTextDistance = nearestText?.let { hypot(point.x - it.position.x, point.y - it.position.y) } ?: Float.MAX_VALUE
-
-                                when {
-                                    nearestStroke != null && nearestStrokeDistance <= 0.045f -> {
-                                        pageStrokes[pageIdx] = strokes.filterNot { it.id == nearestStroke.id }
-                                        studioViewModel.schedulePersistAnnotations(studioViewModel.pdfUri)
-                                        pushHistory(StudioViewModel.AnnotationAction.StrokeRemoved(pageIdx, nearestStroke))
-                                        setChanged()
-                                    }
-                                    nearestText != null && nearestTextDistance <= 0.09f -> {
-                                        pageTexts[pageIdx] = texts.filterNot { it.id == nearestText.id }
-                                        studioViewModel.schedulePersistAnnotations(studioViewModel.pdfUri)
-                                        pushHistory(StudioViewModel.AnnotationAction.TextRemoved(pageIdx, nearestText))
-                                        setChanged()
-                                    }
-                                }
-                            },
-                            onUndo = {
-                                when (val action = annotationHistory.removeLastOrNull()) {
-                                    is StudioViewModel.AnnotationAction.StrokeAdded -> {
-                                        pageStrokes[action.page] = pageStrokes[action.page].orEmpty()
-                                            .filterNot { it.id == action.stroke.id }
-                                    }
-                                    is StudioViewModel.AnnotationAction.StrokeRemoved -> {
-                                        pageStrokes[action.page] = pageStrokes[action.page].orEmpty() + action.stroke
-                                    }
-                                    is StudioViewModel.AnnotationAction.TextAdded -> {
-                                        pageTexts[action.page] = pageTexts[action.page].orEmpty()
-                                            .filterNot { it.id == action.text.id }
-                                    }
-                                    is StudioViewModel.AnnotationAction.TextRemoved -> {
-                                        pageTexts[action.page] = pageTexts[action.page].orEmpty() + action.text
-                                    }
-                                    null -> Unit
-                                }
-                                studioViewModel.schedulePersistAnnotations(studioViewModel.pdfUri)
-                                setChanged()
-                            },
-                            onSaveClick = {
-                                val baseName = safeFileName(resolveFileName(context, activeUri))
-                                    .removeSuffix(".pdf")
-                                    .ifBlank { "document" }
-                                saveLauncher.launch("Edited_${baseName}.pdf")
-                            },
-                            onShareClick = { uri ->
-                                if (hasUnsavedChanges) {
-                                    errorMessage = "Save your changes before sharing the PDF."
-                                } else {
-                                    try {
-                                        sharePdf(context, uri)
-                                    } catch (e: Exception) {
-                                        errorMessage = e.message ?: "Could not share PDF"
-                                    }
-                                }
-                            },
-                            onBackClick = ::requestBack
-                        )
-                    }
-                } else {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        if (isBusy) CircularProgressIndicator() else Text("No PDF is currently open")
-                    }
-                }
-            }
-
-            AppScreen.SETTINGS -> SettingsScreen(
-                isDarkTheme = isDarkTheme,
-                onThemeToggle = { value ->
-                    isDarkTheme = value
-                    prefs.edit { putBoolean(DARK_THEME_KEY, value) }
-                },
-                onBackClick = { studioViewModel.currentScreen = AppScreen.HOME }
-            )
-        }
-
-        if (currentScreen != AppScreen.EDITOR) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-                BottomNavBar(
-                    currentScreen = currentScreen,
-                    onTabSelected = { studioViewModel.currentScreen = it },
-                    onScanClick = onScanDoc
-                )
-            }
-        }
-
-        if (isBusy) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Card(shape = RoundedCornerShape(16.dp)) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 18.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                        Text("Working…")
-                    }
-                }
-            }
-        }
-
-        errorMessage?.let { message ->
-            LaunchedEffect(message) {
-                delay(3500.milliseconds)
-                if (errorMessage == message) errorMessage = null
-            }
-            Box(
-                modifier = Modifier.fillMaxSize().padding(20.dp),
-                contentAlignment = Alignment.BottomCenter
-            ) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        message,
-                        modifier = Modifier.padding(16.dp),
-                        color = MaterialTheme.colorScheme.onErrorContainer
+    PDFEditorAppTheme(themeMode = themeMode, dynamicColor = dynamicColor) {
+        Scaffold(
+            bottomBar = {
+                if (currentScreen != AppScreen.EDITOR && currentScreen != AppScreen.SETTINGS) {
+                    BottomNavBar(
+                        currentScreen = currentScreen,
+                        onTabSelected = { studioViewModel.currentScreen = it },
+                        onScanClick = { launchDocumentScanner() }
                     )
                 }
             }
-        }
-
-        if (showUnsavedDialog) {
-            AlertDialog(
-                onDismissRequest = { showUnsavedDialog = false },
-                title = { Text("Unsaved changes") },
-                text = { Text("You have unsaved annotations. Save them before leaving the editor?") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            showUnsavedDialog = false
-                            val activeUri = pdfUri ?: return@TextButton
-                            val baseName = safeFileName(resolveFileName(context, activeUri))
-                                .removeSuffix(".pdf")
-                                .ifBlank { "document" }
-                            saveLauncher.launch("Edited_${baseName}.pdf")
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                if (!isUnlocked) {
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Text("PDF Studio is locked", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Button(onClick = {
+                                if (activity != null) {
+                                    showBiometricPrompt(
+                                        activity = activity,
+                                        onSuccess = { isUnlocked = true },
+                                        onError = { errorMessage = it }
+                                    )
+                                }
+                            }) {
+                                Text("Unlock with Biometrics")
+                            }
                         }
-                    ) { Text("Save") }
-                },
-                dismissButton = {
-                    Row {
-                        TextButton(onClick = {
-                            showUnsavedDialog = false
-                            clearAnnotations()
-                            studioViewModel.currentScreen = AppScreen.HOME
-                        }) { Text("Discard") }
-                        TextButton(onClick = { showUnsavedDialog = false }) { Text("Cancel") }
+                    }
+                } else {
+                    when (currentScreen) {
+                        AppScreen.HOME -> HomeScreen(
+                            recentFiles = recentFiles,
+                            onOpenPdf = { openPdfLauncher.launch("application/pdf") },
+                            onPhotoClick = { pickImageLauncher.launch("image/*") },
+                            onScanDoc = { launchDocumentScanner() },
+                            onFileTap = ::onFileTap,
+                            onSettingsTap = { studioViewModel.currentScreen = AppScreen.SETTINGS },
+                            onToggleFavorite = ::onToggleFavorite,
+                            onRemove = ::onRemoveRecent,
+                            onShare = ::onShareRecent
+                        )
+
+                        AppScreen.FILES -> FilesScreen(
+                            recentFiles = recentFiles,
+                            onFileTap = ::onFileTap,
+                            onToggleFavorite = ::onToggleFavorite,
+                            onRemove = ::onRemoveRecent,
+                            onShare = ::onShareRecent,
+                            onClearAll = {
+                                recentFiles = emptyList()
+                                persistRecentFiles(context, emptyList())
+                            }
+                        )
+
+                        AppScreen.TOOLS -> ToolsScreen(
+                            onOpenPdf = { uri -> openPdf(uri) },
+                            onRecentFilesUpdated = { recentFiles = loadRecentFiles(context) }
+                        )
+
+                        AppScreen.EDITOR -> {
+                            val activeRenderer = renderer
+                            val activeUri = studioViewModel.pdfUri?.let { Uri.parse(it) }
+                            if (activeRenderer != null && activeUri != null && pageCount > 0) {
+                                PDFEditorAppTheme(themeMode = themeMode, dynamicColor = dynamicColor) {
+                                    EditorScreen(
+                                        renderer = activeRenderer,
+                                        pdfUri = activeUri,
+                                        currentPage = currentPage,
+                                        pageCount = pageCount,
+                                        zoomLevel = zoomLevel,
+                                        editorMode = editorMode,
+                                        currentColor = currentColor,
+                                        strokeWidth = strokeWidth,
+                                        pageStrokes = pageStrokes,
+                                        pageTexts = pageTexts,
+                                        pageShapes = pageShapes,
+                                        pageSignatures = pageSignatures,
+                                        savedSignatures = studioViewModel.savedSignatures,
+                                        textIsBold = studioViewModel.textIsBold.value,
+                                        textBgColor = studioViewModel.textBgColor.value,
+                                        pageColorFilter = pageColorFilter,
+                                        rendererMutex = rendererMutex,
+                                        isBusy = isBusy,
+                                        hasUnsavedChanges = hasUnsavedChanges,
+                                        hasUndoHistory = studioViewModel.annotationHistory.isNotEmpty(),
+                                        hasRedoHistory = studioViewModel.redoHistory.isNotEmpty(),
+                                        onPageChange = { studioViewModel.currentPage = it.coerceIn(0, pageCount - 1) },
+                                        onZoomChange = { studioViewModel.zoomLevel = it.coerceIn(1f, 3f) },
+                                        onModeChange = { studioViewModel.editorMode = it },
+                                        onColorChange = { studioViewModel.currentColor = it },
+                                        onWidthChange = { studioViewModel.strokeWidth = it },
+                                        onTextBoldToggle = { studioViewModel.textIsBold.value = !studioViewModel.textIsBold.value },
+                                        onTextBgColorChange = { studioViewModel.textBgColor.value = it },
+                                        onPageColorFilterChange = {
+                                            pageColorFilter = it
+                                            prefs.edit().putString("page_color_filter", it.name).apply()
+                                        },
+                                        onStrokeAdded = { pageIdx, stroke ->
+                                            studioViewModel.pushAction(StudioViewModel.AnnotationAction.StrokeAdded(pageIdx, stroke))
+                                        },
+                                        onTextAdded = { pageIdx, text ->
+                                            studioViewModel.pushAction(StudioViewModel.AnnotationAction.TextAdded(pageIdx, text))
+                                        },
+                                        onShapeAdded = { pageIdx, shape ->
+                                            studioViewModel.pushAction(StudioViewModel.AnnotationAction.ShapeAdded(pageIdx, shape))
+                                        },
+                                        onSignatureAdded = { pageIdx, sig ->
+                                            studioViewModel.pushAction(StudioViewModel.AnnotationAction.SignatureAdded(pageIdx, sig))
+                                        },
+                                        onSaveSignaturePreset = { strokes ->
+                                            studioViewModel.saveSignaturePreset(strokes)
+                                        },
+                                        onEraseAt = { pageIdx, point ->
+                                            val strokes = pageStrokes[pageIdx].orEmpty()
+                                            val texts = pageTexts[pageIdx].orEmpty()
+                                            val nearestStroke = strokes.minByOrNull { strokeDistance(point, it) }
+                                            val nearestStrokeDistance = nearestStroke?.let { strokeDistance(point, it) } ?: Float.MAX_VALUE
+                                            val nearestText = texts.minByOrNull { hypot(point.x - it.position.x, point.y - it.position.y) }
+                                            val nearestTextDistance = nearestText?.let { hypot(point.x - it.position.x, point.y - it.position.y) } ?: Float.MAX_VALUE
+
+                                            when {
+                                                nearestStroke != null && nearestStrokeDistance <= 0.045f -> {
+                                                    studioViewModel.pushAction(StudioViewModel.AnnotationAction.StrokeRemoved(pageIdx, nearestStroke))
+                                                }
+                                                nearestText != null && nearestTextDistance <= 0.09f -> {
+                                                    studioViewModel.pushAction(StudioViewModel.AnnotationAction.TextRemoved(pageIdx, nearestText))
+                                                }
+                                            }
+                                        },
+                                        onUndo = { studioViewModel.undo() },
+                                        onRedo = { studioViewModel.redo() },
+                                        onSaveClick = { showSaveOverwriteDialog = true },
+                                        onShareClick = { uri ->
+                                            if (hasUnsavedChanges) {
+                                                errorMessage = "Save your changes before sharing the PDF."
+                                            } else {
+                                                runCatching {
+                                                    sharePdf(context, uri)
+                                                }.onFailure { e ->
+                                                    errorMessage = e.message ?: "Could not share PDF"
+                                                }
+                                            }
+                                        },
+                                        onBackClick = { confirmBackNavigation() }
+                                    )
+                                }
+                            }
+                        }
+
+                        AppScreen.SETTINGS -> SettingsScreen(
+                            themeMode = themeMode,
+                            onThemeModeChange = {
+                                themeMode = it
+                                prefs.edit().putString("theme_mode", it.name).apply()
+                            },
+                            dynamicColor = dynamicColor,
+                            onDynamicColorChange = {
+                                dynamicColor = it
+                                prefs.edit().putBoolean("dynamic_color", it).apply()
+                            },
+                            appLockEnabled = appLockEnabled,
+                            onAppLockToggle = {
+                                appLockEnabled = it
+                                prefs.edit().putBoolean("app_lock_enabled", it).apply()
+                            },
+                            onBackClick = { studioViewModel.currentScreen = AppScreen.HOME }
+                        )
                     }
                 }
-            )
+
+                if (isBusy) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.3f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            shadowElevation = 8.dp
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(24.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                CircularProgressIndicator()
+                                Text("Working…")
+                            }
+                        }
+                    }
+                }
+
+                errorMessage?.let { message ->
+                    LaunchedEffect(message) {
+                        delay(3500.milliseconds)
+                        if (errorMessage == message) errorMessage = null
+                    }
+                    Box(
+                        modifier = Modifier.fillMaxSize().padding(20.dp),
+                        contentAlignment = Alignment.BottomCenter
+                    ) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                message,
+                                modifier = Modifier.padding(16.dp),
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                }
+
+                passwordPromptUri?.let { uri ->
+                    AlertDialog(
+                        onDismissRequest = { passwordPromptUri = null },
+                        title = { Text("Password Protected PDF") },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("This PDF document is encrypted. Enter the password to open:")
+                                OutlinedTextField(
+                                    value = passwordPromptText,
+                                    onValueChange = { passwordPromptText = it },
+                                    label = { Text("Password") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                val pass = passwordPromptText.trim()
+                                val targetUri = uri
+                                passwordPromptUri = null
+                                if (pass.isNotEmpty()) {
+                                    scope.launch {
+                                        isBusy = true
+                                        val unlockedFile = unlockPdf(context, targetUri, pass)
+                                        isBusy = false
+                                        if (unlockedFile != null) {
+                                            openPdf(fileProviderUri(context, unlockedFile))
+                                        } else {
+                                            errorMessage = "Incorrect password or unable to decrypt PDF."
+                                        }
+                                    }
+                                }
+                            }) { Text("Open") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { passwordPromptUri = null }) { Text("Cancel") }
+                        }
+                    )
+                }
+            }
         }
     }
 }

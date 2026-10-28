@@ -1,6 +1,7 @@
 package com.ankit.pdfeditor.ui.settings
 
 import com.ankit.pdfeditor.BuildConfig
+import com.ankit.pdfeditor.model.ThemeMode
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -13,16 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,8 +26,12 @@ import androidx.compose.ui.unit.sp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SettingsScreen(
-    isDarkTheme: Boolean,
-    onThemeToggle: (Boolean) -> Unit,
+    themeMode: ThemeMode,
+    onThemeModeChange: (ThemeMode) -> Unit,
+    dynamicColor: Boolean,
+    onDynamicColorChange: (Boolean) -> Unit,
+    appLockEnabled: Boolean,
+    onAppLockToggle: (Boolean) -> Unit,
     onBackClick: () -> Unit
 ) {
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -55,13 +51,47 @@ internal fun SettingsScreen(
         ) {
             item {
                 Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Theme Mode", fontWeight = FontWeight.Bold)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            ThemeMode.entries.forEach { mode ->
+                                FilterChip(
+                                    selected = themeMode == mode,
+                                    onClick = { onThemeModeChange(mode) },
+                                    label = { Text(mode.name.lowercase().replaceFirstChar { it.uppercase() }) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            item {
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Dark Mode", fontWeight = FontWeight.Bold)
-                        Switch(checked = isDarkTheme, onCheckedChange = onThemeToggle)
+                        Column {
+                            Text("Material You (Dynamic Color)", fontWeight = FontWeight.Bold)
+                            Text("Use wallpaper color scheme (Android 12+)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(checked = dynamicColor, onCheckedChange = onDynamicColorChange)
+                    }
+                }
+            }
+            item {
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("Biometric App Lock", fontWeight = FontWeight.Bold)
+                            Text("Require fingerprint or face unlock", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(checked = appLockEnabled, onCheckedChange = onAppLockToggle)
                     }
                 }
             }
@@ -77,12 +107,6 @@ internal fun SettingsScreen(
                         )
                     }
                 }
-            }
-            item {
-                Text(
-                    "Edited PDFs preserve the original document content while adding annotations.",
-                    style = MaterialTheme.typography.bodySmall
-                )
             }
         }
     }

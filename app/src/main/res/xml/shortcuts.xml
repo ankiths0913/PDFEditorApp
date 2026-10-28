@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="scan_doc"
+        android:enabled="true"
+        android:shortcutShortLabel="@string/app_name"
+        android:shortcutLongLabel="@string/app_name">
+        <intent
+            android:action="com.ankit.pdfeditor.ACTION_SCAN"
+            android:targetPackage="com.ankit.pdfeditor"
+            android:targetClass="com.ankit.pdfeditor.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="merge_pdf"
+        android:enabled="true"
+        android:shortcutShortLabel="@string/app_name"
+        android:shortcutLongLabel="@string/app_name">
+        <intent
+            android:action="com.ankit.pdfeditor.ACTION_MERGE"
+            android:targetPackage="com.ankit.pdfeditor"
+            android:targetClass="com.ankit.pdfeditor.MainActivity" />
+    </shortcut>
+</shortcuts>

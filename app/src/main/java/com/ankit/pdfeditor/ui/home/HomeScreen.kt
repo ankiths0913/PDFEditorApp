@@ -181,6 +181,7 @@ internal fun RecentFilesHeader(count: Int, currentSort: SortOption, onSortChange
         Row(modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(StudioSlate200).padding(2.dp)) {
             SortPill("Date", currentSort == SortOption.DATE) { onSortChange(SortOption.DATE) }
             SortPill("Name", currentSort == SortOption.NAME) { onSortChange(SortOption.NAME) }
+            SortPill("Size", currentSort == SortOption.SIZE) { onSortChange(SortOption.SIZE) }
         }
     }
 }
@@ -235,7 +236,7 @@ internal fun HomeScreen(
     onOpenPdf: () -> Unit,
     onPhotoClick: () -> Unit,
     onScanDoc: () -> Unit,
-    onFileTap: (Uri) -> Unit,
+    onFileTap: (RecentFileItem) -> Unit,
     onSettingsTap: () -> Unit,
     onToggleFavorite: (RecentFileItem) -> Unit,
     onRemove: (RecentFileItem) -> Unit,
@@ -249,9 +250,10 @@ internal fun HomeScreen(
         .sortedWith(when (currentSort) {
             SortOption.DATE -> compareByDescending { it.timestamp }
             SortOption.NAME -> compareBy { it.fileName.lowercase() }
+            SortOption.SIZE -> compareByDescending { it.fileSizeBytes }
         })
     Column(modifier = Modifier.fillMaxSize().background(StudioSlate50)) {
-        DashboardTopBar(subtitle = "Cloud Synced", onSettingsTap = onSettingsTap)
+        DashboardTopBar(subtitle = "Local Storage", onSettingsTap = onSettingsTap)
         LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 100.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
             item { HeroBanner(onOpenPdf, onScanDoc) }
             item { ImportGridSection(onOpenPdf, onPhotoClick, onOpenPdf, onScanDoc) }
@@ -259,10 +261,10 @@ internal fun HomeScreen(
             item { RecentFilesHeader(filteredFiles.size, currentSort) { currentSort = it } }
             if (filteredFiles.isNotEmpty()) {
                 items(filteredFiles, key = { it.uri }) { file ->
-                    RecentFileCard(file, { onFileTap(Uri.parse(file.uri)) }, { onToggleFavorite(file) }, { onShare(file) }, { onRemove(file) })
+                    RecentFileCard(file, { onFileTap(file) }, { onToggleFavorite(file) }, { onShare(file) }, { onRemove(file) })
                 }
-            } else if (recentFiles.isEmpty()) item { EmptyFilesMessage("No recent PDF files found. Open a file to get started!") }
-            else item { EmptyFilesMessage("No recent PDFs match your search.") }
+            } else if (recentFiles.isEmpty()) item { EmptyFilesMessage("No PDF files yet. Open one from Home to get started!") }
+            else item { EmptyFilesMessage("No files match your search.") }
         }
     }
 }

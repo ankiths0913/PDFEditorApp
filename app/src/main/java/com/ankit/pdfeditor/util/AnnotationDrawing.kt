@@ -6,7 +6,10 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import com.ankit.pdfeditor.model.PdfShape
+import com.ankit.pdfeditor.model.PdfSignature
 import com.ankit.pdfeditor.model.PdfStroke
+import com.ankit.pdfeditor.model.ShapeType
 import kotlin.math.abs
 import kotlin.math.hypot
 
@@ -52,4 +55,76 @@ internal fun DrawScope.drawNormalizedStroke(stroke: PdfStroke) {
         color = stroke.color,
         style = Stroke(width = stroke.widthFraction * minDimension, cap = StrokeCap.Round)
     )
+}
+
+internal fun DrawScope.drawNormalizedShape(shape: PdfShape) {
+    val minDimension = minOf(size.width, size.height)
+    val strokeWidthPx = shape.widthFraction * minDimension
+    val startPx = Offset(shape.start.x * size.width, shape.start.y * size.height)
+    val endPx = Offset(shape.end.x * size.width, shape.end.y * size.height)
+
+    when (shape.type) {
+        ShapeType.RECTANGLE -> {
+            val left = minOf(startPx.x, endPx.x)
+            val top = minOf(startPx.y, endPx.y)
+            val width = abs(endPx.x - startPx.x)
+            val height = abs(endPx.y - startPx.y)
+            drawRect(
+                color = shape.color,
+                topLeft = Offset(left, top),
+                size = androidx.compose.ui.geometry.Size(width, height),
+                style = Stroke(width = strokeWidthPx)
+            )
+        }
+        ShapeType.LINE, ShapeType.UNDERLINE, ShapeType.STRIKETHROUGH -> {
+            drawLine(
+                color = shape.color,
+                start = startPx,
+                end = endPx,
+                strokeWidth = strokeWidthPx,
+                cap = StrokeCap.Round
+            )
+        }
+        ShapeType.ARROW -> {
+            drawLine(
+                color = shape.color,
+                start = startPx,
+                end = endPx,
+                strokeWidth = strokeWidthPx,
+                cap = StrokeCap.Round
+            )
+            val angle = kotlin.math.atan2(endPx.y - startPx.y, endPx.x - startPx.x)
+            val arrowLength = (strokeWidthPx * 4f).coerceAtLeast(16f)
+            val arrowAngle = Math.toRadians(30.0)
+
+            val p1 = Offset(
+                endPx.x - arrowLength * kotlin.math.cos(angle - arrowAngle).toFloat(),
+                endPx.y - arrowLength * kotlin.math.sin(angle - arrowAngle).toFloat()
+            )
+            val p2 = Offset(
+                endPx.x - arrowLength * kotlin.math.cos(angle + arrowAngle).toFloat(),
+                endPx.y - arrowLength * kotlin.math.sin(angle + arrowAngle).toFloat()
+            )
+            drawLine(color = shape.color, start = endPx, end = p1, strokeWidth = strokeWidthPx, cap = StrokeCap.Round)
+            drawLine(color = shape.color, start = endPx, end = p2, strokeWidth = strokeWidthPx, cap = StrokeCap.Round)
+        }
+    }
+}
+
+internal fun DrawScope.drawNormalizedSignature(signature: PdfSignature) {
+    val posX = signature.position.x * size.width
+    val posY = signature.position.y * size.height
+    val sigW = signature.size.x * size.width
+    val sigH = signature.size.y * size.height
+
+    signature.strokes.forEach { strokePoints ->
+        if (strokePoints.isNotEmpty()) {
+            val screenPoints = strokePoints.map { Offset(posX + it.x * sigW, posY + it.y * sigH) }
+            drawPath(
+                path = buildComposePath(screenPoints),
+                color = signature.color,
+                style = Stroke(width = 3f, cap = StrokeCap.Round)
+            )
+        }
+    }
 }
