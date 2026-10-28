@@ -3,8 +3,8 @@
     <shortcut
         android:shortcutId="scan_doc"
         android:enabled="true"
-        android:shortcutShortLabel="@string/app_name"
-        android:shortcutLongLabel="@string/app_name">
+        android:shortcutShortLabel="@string/shortcut_scan"
+        android:shortcutLongLabel="@string/shortcut_scan">
         <intent
             android:action="com.ankit.pdfeditor.ACTION_SCAN"
             android:targetPackage="com.ankit.pdfeditor"
@@ -13,8 +13,8 @@
     <shortcut
         android:shortcutId="merge_pdf"
         android:enabled="true"
-        android:shortcutShortLabel="@string/app_name"
-        android:shortcutLongLabel="@string/app_name">
+        android:shortcutShortLabel="@string/shortcut_merge"
+        android:shortcutLongLabel="@string/shortcut_merge">
         <intent
             android:action="com.ankit.pdfeditor.ACTION_MERGE"
             android:targetPackage="com.ankit.pdfeditor"

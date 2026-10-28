@@ -68,9 +68,6 @@ internal suspend fun saveFilledFormPdf(
                     val field = acroForm.getField(name)
                     field?.setValue(value)
                 }
-                if (acroForm.fields.isNotEmpty()) {
-                    acroForm.flatten()
-                }
                 val outputFile = File(appDocumentsDir(context), "Filled_${System.currentTimeMillis()}.pdf")
                 doc.save(outputFile)
                 outputFile

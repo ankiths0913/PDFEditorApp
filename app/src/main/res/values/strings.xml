@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">PDF Studio</string>
+    <string name="shortcut_scan">Scan document</string>
+    <string name="shortcut_merge">Merge PDFs</string>
 </resources>

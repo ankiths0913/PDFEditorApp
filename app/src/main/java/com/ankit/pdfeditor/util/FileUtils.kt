@@ -28,7 +28,23 @@ internal fun cleanupGeneratedFiles(context: Context, recentItems: List<RecentFil
     val cutoff = System.currentTimeMillis() - 24 * 60 * 60 * 1000L
     appDocumentsDir(context).listFiles()
         .orEmpty()
-        .filter { it.name.startsWith("Converted_") || it.name.startsWith("Scan_") }
+        .filter {
+            it.name.startsWith("Converted_") ||
+                it.name.startsWith("Scan_") ||
+                it.name.startsWith("Merged_") ||
+                it.name.startsWith("Split_") ||
+                it.name.startsWith("Page_") ||
+                it.name.startsWith("Compressed_") ||
+                it.name.startsWith("Protected_") ||
+                it.name.startsWith("Unlocked_") ||
+                it.name.startsWith("Annotated_") ||
+                it.name.startsWith("Filled_") ||
+                it.name.startsWith("Redacted_") ||
+                it.name.startsWith("Watermarked_") ||
+                it.name.startsWith("Numbered_") ||
+                it.name.startsWith("Searchable_OCR_") ||
+                it.name.startsWith("ImagesToPdf_")
+        }
         .filter { it.lastModified() < cutoff }
         .filterNot { it.name in referencedNames }
         .forEach { it.delete() }

@@ -1,6 +1,7 @@
 package com.ankit.pdfeditor.util
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Rect
 import android.net.Uri
@@ -88,10 +89,21 @@ internal suspend fun generateSearchablePdfFromImages(
 
             PDPageContentStream(doc, page).use { content ->
                 // Draw background image
-                context.contentResolver.openInputStream(imageUri)?.use { imgStream ->
-                    val pdImage = JPEGFactory.createFromStream(doc, imgStream)
-                    content.drawImage(pdImage, 0f, 0f, pdfWidth, pdfHeight)
-                }
+                val bitmap = context.contentResolver.openInputStream(imageUri)?.use { stream ->
+                    BitmapFactory.decodeStream(stream)
+                } ?: throw IllegalArgumentException("Unable to decode OCR image")
+                val pdImage = JPEGFactory.createFromImage(doc, bitmap)
+                val scale = minOf(pdfWidth / bitmap.width, pdfHeight / bitmap.height)
+                val drawWidth = bitmap.width * scale
+                val drawHeight = bitmap.height * scale
+                content.drawImage(
+                    pdImage,
+                    (pdfWidth - drawWidth) / 2f,
+                    (pdfHeight - drawHeight) / 2f,
+                    drawWidth,
+                    drawHeight
+                )
+                bitmap.recycle()
 
                 // Enable invisible text layer (Mode 3: neither fill nor stroke text)
                 content.appendRawCommands("3 Tr\n")

@@ -32,16 +32,16 @@ internal suspend fun mergePdfs(context: Context, uris: List<Uri>): File? = withC
         val merger = PDFMergerUtility()
         val outputFile = File(appDocumentsDir(context), "Merged_${System.currentTimeMillis()}.pdf")
         val outputStream = FileOutputStream(outputFile)
-        val inputStreams = uris.mapNotNull { uri -> context.contentResolver.openInputStream(uri) }
-        if (inputStreams.size < 2) {
-            inputStreams.forEach { runCatching { it.close() } }
+        val inputStreams = uris.map { uri -> context.contentResolver.openInputStream(uri) }
+        if (inputStreams.any { it == null }) {
+            inputStreams.forEach { runCatching { it?.close() } }
             outputStream.close()
             return@withContext null
         }
-        inputStreams.forEach { merger.addSource(it) }
+        inputStreams.filterNotNull().forEach { merger.addSource(it) }
         merger.destinationStream = outputStream
         merger.mergeDocuments(MemoryUsageSetting.setupTempFileOnly())
-        inputStreams.forEach { runCatching { it.close() } }
+        inputStreams.forEach { runCatching { it?.close() } }
         outputStream.close()
         outputFile
     } catch (_: Exception) {
@@ -59,7 +59,7 @@ internal suspend fun splitPdf(context: Context, uri: Uri, pagesToKeep: List<Int>
                 val newDoc = PDDocument()
                 pagesToKeep.forEach { pageIdx ->
                     if (pageIdx in 0 until srcDoc.numberOfPages) {
-                        newDoc.addPage(srcDoc.getPage(pageIdx))
+                                newDoc.importPage(srcDoc.getPage(pageIdx))
                     }
                 }
                 if (newDoc.numberOfPages == 0) {
@@ -95,7 +95,7 @@ internal suspend fun reorderRotateDeletePdf(
                             val currentRotation = page.rotation
                             page.rotation = ((currentRotation + spec.rotationDelta) % 360 + 360) % 360
                         }
-                        newDoc.addPage(page)
+                        newDoc.importPage(page)
                     }
                 }
                 if (newDoc.numberOfPages == 0) {
@@ -130,6 +130,7 @@ internal suspend fun compressPdf(
                     val renderWidth = (page.width * scaleFactor).toInt().coerceAtLeast(1)
                     val renderHeight = (page.height * scaleFactor).toInt().coerceAtLeast(1)
                     val bitmap = Bitmap.createBitmap(renderWidth, renderHeight, Bitmap.Config.ARGB_8888)
+                    bitmap.eraseColor(android.graphics.Color.WHITE)
                     page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
 
                     val baos = ByteArrayOutputStream()
@@ -175,7 +176,8 @@ internal suspend fun protectPdf(
                     userPassword,
                     ap
                 )
-                spp.encryptionKeyLength = 128
+                spp.encryptionKeyLength = 256
+                spp.permissions = ap
                 doc.protect(spp)
                 val outputFile = File(appDocumentsDir(context), "Protected_${System.currentTimeMillis()}.pdf")
                 doc.save(outputFile)
@@ -228,6 +230,7 @@ internal suspend fun convertPdfToImages(
                 val width = (page.width * scale * 2).toInt().coerceAtLeast(1)
                 val height = (page.height * scale * 2).toInt().coerceAtLeast(1)
                 val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                bitmap.eraseColor(android.graphics.Color.WHITE)
                 page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
 
                 val imageFile = File(appDocumentsDir(context), "Page_${pageIdx + 1}_$timestamp.$ext")
@@ -351,11 +354,11 @@ internal suspend fun addWatermarkOrPageNumbers(
                                 val fontSize = pageMin * 0.08f
                                 content.beginText()
                                 content.setFont(font, fontSize)
-                                val textWidth = (text.length * fontSize * 0.5f)
+                                                val textWidth = font.getStringWidth(text) / 1000f * fontSize
                                 val textMatrix = Matrix.getRotateInstance(
                                     Math.toRadians(45.0),
-                                    crop.width / 2f - textWidth / 2f,
-                                    crop.height / 2f
+                                    crop.lowerLeftX + crop.width / 2f - textWidth / 2f,
+                                    crop.lowerLeftY + crop.height / 2f
                                 )
                                 content.setTextMatrix(textMatrix)
                                 content.showText(text)
@@ -363,13 +366,13 @@ internal suspend fun addWatermarkOrPageNumbers(
                             } else {
                                 val text = "Page ${pageIdx + 1} of $totalPages"
                                 val fontSize = pageMin * 0.035f
-                                val textWidth = text.length * fontSize * 0.5f
+                                val textWidth = font.getStringWidth(text) / 1000f * fontSize
 
                                 val (x, y) = when (config.position) {
-                                    NumberPosition.BOTTOM_CENTER -> Pair(crop.width / 2f - textWidth / 2f, 25f)
-                                    NumberPosition.BOTTOM_RIGHT -> Pair(crop.width - textWidth - 30f, 25f)
-                                    NumberPosition.TOP_RIGHT -> Pair(crop.width - textWidth - 30f, crop.height - 35f)
-                                    NumberPosition.TOP_CENTER -> Pair(crop.width / 2f - textWidth / 2f, crop.height - 35f)
+                                    NumberPosition.BOTTOM_CENTER -> Pair(crop.lowerLeftX + crop.width / 2f - textWidth / 2f, crop.lowerLeftY + 25f)
+                                    NumberPosition.BOTTOM_RIGHT -> Pair(crop.lowerLeftX + crop.width - textWidth - 30f, crop.lowerLeftY + 25f)
+                                    NumberPosition.TOP_RIGHT -> Pair(crop.lowerLeftX + crop.width - textWidth - 30f, crop.lowerLeftY + crop.height - 35f)
+                                    NumberPosition.TOP_CENTER -> Pair(crop.lowerLeftX + crop.width / 2f - textWidth / 2f, crop.lowerLeftY + crop.height - 35f)
                                 }
 
                                 content.beginText()

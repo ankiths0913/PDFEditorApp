@@ -312,7 +312,10 @@ private fun canEncode(font: PDType0Font, text: String): Boolean {
 }
 
 @Composable
-internal fun PdfStudioApp(initialUri: Uri? = null) {
+internal fun PdfStudioApp(
+    initialUri: Uri? = null,
+    initialAction: String? = null
+) {
     val context = LocalContext.current
     val activity = context as? FragmentActivity
     val studioViewModel: StudioViewModel = viewModel()
@@ -409,7 +412,6 @@ internal fun PdfStudioApp(initialUri: Uri? = null) {
             val previousUri = studioViewModel.pdfUri
             val sameDocument = previousUri == uri.toString()
             studioViewModel.pdfUri = uri.toString()
-            studioViewModel.pdfUri?.let { _ -> }
             if (!sameDocument) {
                 studioViewModel.clearAnnotations(previousUri, deletePersisted = false)
                 val savedItem = recentFiles.firstOrNull { it.uri == uri.toString() }
@@ -448,7 +450,8 @@ internal fun PdfStudioApp(initialUri: Uri? = null) {
             try {
                 loadPdf(uri, fileNameOverride)
             } catch (e: Exception) {
-                if (e is SecurityException || e.message?.contains("encrypted", ignoreCase = true) == true || e.message?.contains("password", ignoreCase = true) == true) {
+                if (e.message?.contains("encrypted", ignoreCase = true) == true ||
+                    e.message?.contains("password", ignoreCase = true) == true) {
                     passwordPromptUri = uri
                     passwordPromptText = ""
                 } else {
@@ -563,6 +566,16 @@ internal fun PdfStudioApp(initialUri: Uri? = null) {
             .addOnFailureListener { e ->
                 errorMessage = e.message ?: "Failed to start document scanner."
             }
+    }
+
+    LaunchedEffect(initialAction) {
+        when (initialAction) {
+            "com.ankit.pdfeditor.ACTION_SCAN" -> launchDocumentScanner()
+            "com.ankit.pdfeditor.ACTION_MERGE" -> {
+                studioViewModel.currentScreen = AppScreen.TOOLS
+                errorMessage = "Choose Merge PDFs from Tools to select documents."
+            }
+        }
     }
 
     fun onShareRecent(item: RecentFileItem) {
@@ -696,6 +709,7 @@ internal fun PdfStudioApp(initialUri: Uri? = null) {
 
     PDFEditorAppTheme(themeMode = themeMode, dynamicColor = dynamicColor) {
         Scaffold(
+            contentWindowInsets = WindowInsets(0),
             bottomBar = {
                 if (currentScreen != AppScreen.EDITOR && currentScreen != AppScreen.SETTINGS) {
                     BottomNavBar(

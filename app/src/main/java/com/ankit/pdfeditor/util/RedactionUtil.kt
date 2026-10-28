@@ -24,6 +24,13 @@ internal suspend fun applyRedactions(
                     if (pageIdx in 0 until doc.numberOfPages) {
                         val page = doc.getPage(pageIdx)
                         val crop = page.cropBox ?: page.mediaBox
+                        val geometry = PdfPageGeometry(
+                            width = crop.width,
+                            height = crop.height,
+                            cropLeft = crop.lowerLeftX,
+                            cropBottom = crop.lowerLeftY,
+                            rotation = page.rotation
+                        )
                         PDPageContentStream(
                             doc,
                             page,
@@ -33,10 +40,18 @@ internal suspend fun applyRedactions(
                         ).use { content ->
                             content.setNonStrokingColor(0f, 0f, 0f)
                             rects.forEach { rect ->
-                                val x = crop.lowerLeftX + rect.left * crop.width
-                                val y = crop.lowerLeftY + (1f - rect.bottom) * crop.height
-                                val w = rect.width * crop.width
-                                val h = rect.height * crop.height
+                                val first = mapNormalizedPointToPdf(
+                                    androidx.compose.ui.geometry.Offset(rect.left, rect.top),
+                                    geometry
+                                )
+                                val second = mapNormalizedPointToPdf(
+                                    androidx.compose.ui.geometry.Offset(rect.right, rect.bottom),
+                                    geometry
+                                )
+                                val x = minOf(first.x, second.x)
+                                val y = minOf(first.y, second.y)
+                                val w = kotlin.math.abs(second.x - first.x)
+                                val h = kotlin.math.abs(second.y - first.y)
                                 content.addRect(x, y, w, h)
                                 content.fill()
                             }

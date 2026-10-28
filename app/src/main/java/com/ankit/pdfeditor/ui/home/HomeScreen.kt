@@ -53,17 +53,17 @@ private fun DashboardTopBar(
             }
             Spacer(Modifier.width(10.dp))
             Column {
-                Text("PDF Studio", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("PDF Studio", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(StudioEmerald500))
                     Spacer(Modifier.width(4.dp))
-                    Text(subtitle, style = MaterialTheme.typography.labelSmall, color = StudioSlate500)
+                    Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
-        Surface(onClick = onSettingsTap, shape = CircleShape, color = StudioSlate100, modifier = Modifier.size(36.dp)) {
+        Surface(onClick = onSettingsTap, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.size(36.dp)) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                Icon(Icons.Default.Settings, contentDescription = "Settings", tint = StudioIndigo600, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
             }
         }
     }
@@ -112,7 +112,12 @@ private fun ImportGridSection(
     onCameraClick: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Import From", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(
+            "Import From",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ImportGridItem(Icons.Default.Storage, "Storage", StudioIndigo50, StudioIndigo600, Modifier.weight(1f), onStorageClick)
             ImportGridItem(Icons.Default.Image, "Photos", StudioBlue50, StudioBlue600, Modifier.weight(1f), onPhotoClick)
@@ -131,13 +136,20 @@ private fun ImportGridItem(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    Surface(onClick = onClick, modifier = modifier, shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface, border = BorderStroke(1.dp, StudioSlate200), shadowElevation = 1.dp) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        shadowElevation = 1.dp
+    ) {
         Column(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(modifier = Modifier.size(38.dp).clip(RoundedCornerShape(11.dp)).background(iconBackground), contentAlignment = Alignment.Center) {
                 Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(18.dp))
             }
             Spacer(Modifier.height(6.dp))
-            Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, maxLines = 1, color = MaterialTheme.colorScheme.onSurface)
         }
     }
 }
@@ -154,15 +166,22 @@ internal fun DashboardSearchBar(
         OutlinedTextField(
             value = query, onValueChange = onQueryChange, modifier = Modifier.fillMaxWidth(),
             placeholder = { Text("Search recent PDFs...") }, singleLine = true, shape = RoundedCornerShape(16.dp),
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = StudioSlate400) },
-            trailingIcon = { IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Default.Tune, contentDescription = "Filter", tint = StudioSlate500, modifier = Modifier.size(20.dp)) } },
-            colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = StudioSlate200, focusedBorderColor = PdfPrimary, unfocusedContainerColor = MaterialTheme.colorScheme.surface, focusedContainerColor = MaterialTheme.colorScheme.surface)
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+            trailingIcon = { IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Default.Tune, contentDescription = "Filter", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp)) } },
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                focusedBorderColor = PdfPrimary,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface
+            )
         )
         DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
             DropdownMenuItem(
                 text = { Text(if (favoritesOnly) "Show all files" else "Show favorites only") },
                 onClick = { onFavoritesOnlyChange(!favoritesOnly); menuExpanded = false },
-                leadingIcon = { Icon(Icons.Default.Star, contentDescription = null, tint = if (favoritesOnly) StudioAmber400 else StudioSlate400) }
+                leadingIcon = { Icon(Icons.Default.Star, contentDescription = null, tint = if (favoritesOnly) StudioAmber400 else MaterialTheme.colorScheme.onSurfaceVariant) }
             )
         }
     }
@@ -172,13 +191,18 @@ internal fun DashboardSearchBar(
 internal fun RecentFilesHeader(count: Int, currentSort: SortOption, onSortChange: (SortOption) -> Unit) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Recent Files", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                "Recent Files",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
             Spacer(Modifier.width(6.dp))
-            Box(modifier = Modifier.clip(RoundedCornerShape(50)).background(StudioSlate200).padding(horizontal = 8.dp, vertical = 2.dp)) {
-                Text("$count", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = StudioSlate600)
+            Box(modifier = Modifier.clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.surfaceVariant).padding(horizontal = 8.dp, vertical = 2.dp)) {
+                Text("$count", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        Row(modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(StudioSlate200).padding(2.dp)) {
+        Row(modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(2.dp)) {
             SortPill("Date", currentSort == SortOption.DATE) { onSortChange(SortOption.DATE) }
             SortPill("Name", currentSort == SortOption.NAME) { onSortChange(SortOption.NAME) }
             SortPill("Size", currentSort == SortOption.SIZE) { onSortChange(SortOption.SIZE) }
@@ -189,7 +213,13 @@ internal fun RecentFilesHeader(count: Int, currentSort: SortOption, onSortChange
 @Composable
 private fun SortPill(label: String, selected: Boolean, onClick: () -> Unit) {
     Surface(onClick = onClick, shape = RoundedCornerShape(10.dp), color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent, shadowElevation = if (selected) 1.dp else 0.dp) {
-        Text(label, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp), style = MaterialTheme.typography.labelSmall, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, color = if (selected) StudioIndigo600 else StudioSlate600)
+        Text(
+            label,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            color = if (selected) StudioIndigo600 else MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -202,20 +232,27 @@ internal fun RecentFileCard(
     onRemove: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
-    Card(onClick = onTap, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
+    Card(
+        onClick = onTap,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
         Row(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(StudioRed50).border(1.dp, StudioRed100, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
                 Icon(Icons.Default.PictureAsPdf, contentDescription = null, tint = StudioRed500, modifier = Modifier.size(18.dp))
             }
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(file.fileName, fontWeight = FontWeight.SemiBold, maxLines = 1, style = MaterialTheme.typography.bodyMedium)
+                Text(file.fileName, fontWeight = FontWeight.SemiBold, maxLines = 1, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                 Spacer(Modifier.height(2.dp))
-                Text("${file.openedAt} • ${formatFileSize(file.fileSizeBytes)}", style = MaterialTheme.typography.labelSmall, color = StudioSlate400, maxLines = 1)
+                Text("${file.openedAt} • ${formatFileSize(file.fileSizeBytes)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
-            IconButton(onClick = onFavoriteToggle) { Icon(Icons.Default.Star, contentDescription = "Favorite", tint = if (file.isFavorite) StudioAmber400 else StudioSlate400) }
+            IconButton(onClick = onFavoriteToggle) { Icon(Icons.Default.Star, contentDescription = "Favorite", tint = if (file.isFavorite) StudioAmber400 else MaterialTheme.colorScheme.onSurfaceVariant) }
             Box {
-                IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "More options", tint = StudioSlate500) }
+                IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "More options", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                     DropdownMenuItem(text = { Text("Share") }, onClick = { menuExpanded = false; onShare() }, leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) })
                     DropdownMenuItem(text = { Text("Remove from list") }, onClick = { menuExpanded = false; onRemove() }, leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) })
@@ -227,7 +264,13 @@ internal fun RecentFileCard(
 
 @Composable
 internal fun EmptyFilesMessage(text: String) {
-    Text(text, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, color = StudioSlate500, modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp))
+    Text(
+        text,
+        style = MaterialTheme.typography.bodyMedium,
+        textAlign = TextAlign.Center,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp)
+    )
 }
 
 @Composable
@@ -252,7 +295,7 @@ internal fun HomeScreen(
             SortOption.NAME -> compareBy { it.fileName.lowercase() }
             SortOption.SIZE -> compareByDescending { it.fileSizeBytes }
         })
-    Column(modifier = Modifier.fillMaxSize().background(StudioSlate50)) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         DashboardTopBar(subtitle = "Local Storage", onSettingsTap = onSettingsTap)
         LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 100.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
             item { HeroBanner(onOpenPdf, onScanDoc) }

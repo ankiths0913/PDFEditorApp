@@ -12,7 +12,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ankit.pdfeditor.model.*
 import com.ankit.pdfeditor.ui.home.*
-import com.ankit.pdfeditor.ui.theme.StudioSlate50
 
 @Composable
 internal fun FilesScreen(
@@ -53,13 +52,13 @@ internal fun FilesScreen(
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(StudioSlate50)) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(
             modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).statusBarsPadding().padding(horizontal = 20.dp, vertical = 18.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("My Files", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("My Files", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             if (recentFiles.isNotEmpty()) {
                 TextButton(onClick = { showClearDialog = true }) {
                     Text("Clear Recents", color = MaterialTheme.colorScheme.error)
